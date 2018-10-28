@@ -1,5 +1,7 @@
 extern crate gtk;
+extern crate gdk;
 extern crate cairo;
+extern crate gdk_pixbuf;
 
 mod chess_position_trainer;
 use chess_position_trainer::graphic::main_window::{MainWindow};
