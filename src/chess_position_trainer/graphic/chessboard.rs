@@ -2,6 +2,8 @@ use gtk::prelude::*;
 use gdk::prelude::*;
 use gtk::DrawingArea;
 use cairo::Context;
+use cairo::enums::FontSlant;
+use cairo::enums::FontWeight;
 use chess_position_trainer::graphic::PieceImages;
 
 pub struct ChessBoard
@@ -20,7 +22,7 @@ impl ChessBoard
         drawing_area.connect_draw(move |_, cr|{
             fn draw_background(cr: &Context)
             {
-                let pink_color = [255.0/255.0, 77.0/255.0, 136.0/255.0];
+                let pink_color = [255.0/255.0, 204.0/255.0, 204.0/255.0];
                 cr.set_source_rgb(
                     pink_color[0],
                     pink_color[1],
@@ -72,9 +74,50 @@ impl ChessBoard
                 cr.paint();
             }
 
+            fn draw_coordinates(cr: &Context, cells_size: u32)
+            {
+                let files = ["A", "B", "C", "D", "E", "F", "G", "H"];
+                let ranks = ["8", "7", "6", "5", "4", "3", "2", "1"];
+
+                cr.set_source_rgb(0.2, 0.4, 1.0);
+                cr.select_font_face(
+                    "Sans Serif",
+                    FontSlant::Normal,
+                    FontWeight::Bold
+                );
+                cr.set_font_size((cells_size as f64) * 0.38);
+                
+                (0..8).for_each(|file_index| {
+                    let letter = files[file_index];
+                    let letter_x = (cells_size as f64) * (0.9 + (file_index as f64));
+                    let letter_y_top = (cells_size as f64) * 0.4;
+                    let letter_y_bottom = (cells_size as f64) * 8.9;
+
+                    cr.move_to(letter_x, letter_y_top);
+                    cr.show_text(letter);
+
+                    cr.move_to(letter_x, letter_y_bottom);
+                    cr.show_text(letter);
+                });
+
+                (0..8).for_each(|rank_index| {
+                    let letter = ranks[rank_index];
+                    let letter_y = (cells_size as f64) * (1.2 + (rank_index as f64));
+                    let letter_x_left = (cells_size as f64) * 0.1;
+                    let letter_x_right = (cells_size as f64) * 8.6;
+
+                    cr.move_to(letter_x_left, letter_y);
+                    cr.show_text(letter);
+
+                    cr.move_to(letter_x_right, letter_y);
+                    cr.show_text(letter);
+                });
+            }
+
             draw_background(cr);
             draw_cells(cr, cells_size);
             draw_pieces(cr, cells_size, &piece_images);
+            draw_coordinates(cr, cells_size);
 
             Inhibit(false)
         });
