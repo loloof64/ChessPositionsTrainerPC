@@ -5,6 +5,7 @@ authors = ["Laurent Bernabe <laurent.bernabe@gmail.com>"]
 license = "MIT"
 
 [dependencies]
+cairo-rs = "0.5.0"
 
 [dependencies.gtk]
 version = "0.5.0"

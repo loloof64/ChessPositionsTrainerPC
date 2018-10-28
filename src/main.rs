@@ -1,7 +1,8 @@
 extern crate gtk;
+extern crate cairo;
 
 mod chess_position_trainer;
-use chess_position_trainer::graphic::{MainWindow};
+use chess_position_trainer::graphic::main_window::{MainWindow};
 
 fn main() {
     if gtk::init().is_err() {

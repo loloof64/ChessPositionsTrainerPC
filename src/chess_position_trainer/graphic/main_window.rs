@@ -1,5 +1,7 @@
-use gtk::{Button, Window, WindowType};
 use gtk::prelude::*;
+use gtk::{Window, WindowType};
+
+use chess_position_trainer::graphic::ChessBoard;
 
 pub struct MainWindow
 {
@@ -24,17 +26,13 @@ impl MainWindow
     {
         self.window.set_title("Chess Position Trainer");
         self.window.set_default_size(350, 70);
-        let button = Button::new_with_label("Click me!");
-        self.window.add(&button);
-        self.window.show_all();
+        let chessboard = ChessBoard::new(50);
 
+        self.window.add(chessboard.get_drawing_area());
+        
         self.window.connect_delete_event(|_, _| {
             gtk::main_quit();
             Inhibit(false)
-        });
-
-        button.connect_clicked(|_| {
-            println!("Clicked!");
         });
     }
 }
