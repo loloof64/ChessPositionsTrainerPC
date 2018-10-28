@@ -1,0 +1,7 @@
+[package]
+name = "chess_position_trainer"
+version = "0.1.0"
+authors = ["Laurent Bernabe <laurent.bernabe@gmail.com>"]
+license = "MIT"
+
+[dependencies]
