@@ -26,7 +26,7 @@ impl MainWindow
     {
         self.window.set_title("Chess Position Trainer");
         let cells_size = 50u32;
-        let window_size = cells_size as i32 * 2;
+        let window_size = cells_size as i32 * 9;
         self.window.set_default_size(window_size, window_size);
         let chessboard = ChessBoard::new(cells_size);
 

@@ -31,23 +31,32 @@ impl ChessBoard
 
             fn draw_cells(cr: &Context, cells_size: u32)
             {
-                let white_cell_color = [255.0/255.0, 255.0/255.0, 179.0/255.0];
+                (0..8).for_each(|row| {
+                    (0..8).for_each(|col| {
+                        let white_cell_color = [255.0/255.0, 255.0/255.0, 179.0/255.0];
+                        let black_cell_color = [153.0/255.0, 102.0/255.0, 51.0/255.0];
 
-                let half_cells_size = (cells_size as f64) * 0.5;
-                let rect_size = (cells_size as f64) * 1.0;
+                        let is_white_cell = (row+col) % 2 == 0;
+                        let cell_color = if is_white_cell {white_cell_color} else {black_cell_color};
 
-                cr.rectangle(
-                    half_cells_size,
-                    half_cells_size,
-                    rect_size,
-                    rect_size,
-                );
-                cr.set_source_rgb(
-                    white_cell_color[0],
-                    white_cell_color[1],
-                    white_cell_color[2],
-                );
-                cr.fill();
+                        let rect_x = (cells_size as f64) * (0.5 + (col as f64));
+                        let rect_y = (cells_size as f64) * (0.5 + (row as f64));
+                        let rect_size = cells_size as f64;
+
+                        cr.rectangle(
+                            rect_x,
+                            rect_y,
+                            rect_size,
+                            rect_size,
+                        );
+                        cr.set_source_rgb(
+                            cell_color[0],
+                            cell_color[1],
+                            cell_color[2],
+                        );
+                        cr.fill();
+                    });
+                });
             }
 
             fn draw_pieces(cr: &Context, cells_size: u32, piece_images: &PieceImages)
