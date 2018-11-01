@@ -1,25 +1,33 @@
-use chess::{Board, Color};
+use shakmaty::{Piece, Square};
+use shakmaty::fen::Fen;
 
 pub struct ChessGame
 {
-    board: Board,
+    position: Fen,
 }
 
 impl ChessGame
 {
     pub fn new_from_fen(position_str: &str) -> Option<ChessGame>
     {
-        match Board::from_fen(String::from(position_str)) {
-            Some(board) => Some(ChessGame {
-                board,
-            }),
+        match Fen::from_ascii(position_str.as_bytes()) {
+            Ok(fen) => Some(
+                ChessGame{
+                    position: fen,
+                }
+            ),
             _ => None
         }
     }
 
     pub fn is_white_turn(&self) -> bool
     {
-        self.board.side_to_move() == Color::White
+        self.position.turn.is_white()
+    }
+
+    pub fn piece_at_cell(&self, file: i8, rank: i8) -> Option<Piece>
+    {
+        self.position.board.piece_at(Square::new((file + rank * 8) as i8))
     }
 
     /*pub fn get_position_fen(&self) -> &str

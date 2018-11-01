@@ -7,7 +7,4 @@ then play it against a very strong computer level.
 Development
 -----------
 
-Using Rust language
-* GTK-RS crate
-* LibRsvg crate
-* chess crate
+Using Rust language and Gtk-Rs GUI.
