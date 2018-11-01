@@ -1,3 +1,4 @@
+extern crate chess;
 extern crate gtk;
 extern crate gdk;
 extern crate cairo;

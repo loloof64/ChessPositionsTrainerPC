@@ -8,6 +8,7 @@ license = "MIT"
 cairo-rs = "0.5.0"
 gdk = "0.9.0"
 gdk-pixbuf = "0.5.0"
+chess = "2.0.1"
 
 [dependencies.gtk]
 version = "0.5.0"

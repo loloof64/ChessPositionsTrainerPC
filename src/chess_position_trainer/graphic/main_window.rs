@@ -30,7 +30,10 @@ impl MainWindow
         let window_size = cells_size as i32 * 9;
         self.window.set_default_size(window_size, window_size);
         self.window.set_icon_from_file(Path::new("resources/Chess_ql.png")).ok().unwrap();
-        let chessboard = ChessBoard::new(cells_size);
+        let chessboard = ChessBoard::new_from_fen(
+            cells_size, 
+            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+        ).expect("Failed to intialize the chessboard !");
 
         self.window.add(chessboard.get_drawing_area());
         

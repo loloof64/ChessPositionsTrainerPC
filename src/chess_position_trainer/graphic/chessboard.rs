@@ -2,36 +2,31 @@ use gtk::prelude::*;
 use gdk::prelude::*;
 use gtk::DrawingArea;
 use cairo::Context;
-use cairo::enums::FontSlant;
-use cairo::enums::FontWeight;
+use cairo::enums::{FontSlant, FontWeight};
 use chess_position_trainer::graphic::PieceImages;
+use chess_position_trainer::logic::chessgame::ChessGame;
 
 pub struct ChessBoard
 {
     drawing_area: DrawingArea,
-    cells_size: u32,
 }
 
 impl ChessBoard
 {
-    pub fn new(cells_size: u32) -> ChessBoard
+    pub fn new_from_default(cells_size: u32) -> Option<ChessBoard>
     {
-        let piece_images = PieceImages::new(cells_size as i32);
-        let drawing_area = DrawingArea::new();
+        ChessBoard::get_chessboard(
+            cells_size,
+            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+        )
+    }
 
-        drawing_area.connect_draw(move |_, cr|{
-            ChessBoard::draw_background(cr);
-            ChessBoard::draw_cells(cr, cells_size);
-            ChessBoard::draw_pieces(cr, cells_size, &piece_images);
-            ChessBoard::draw_coordinates(cr, cells_size);
-
-            Inhibit(false)
-        });
-
-        ChessBoard {
-            drawing_area: drawing_area,
-            cells_size: cells_size,
-        }
+    pub fn new_from_fen(cells_size: u32, initial_position: &str) -> Option<ChessBoard>
+    {
+        ChessBoard::get_chessboard(
+            cells_size,
+            initial_position,
+        )
     }
 
     pub fn get_drawing_area(&self) -> &DrawingArea
@@ -39,13 +34,40 @@ impl ChessBoard
         &self.drawing_area
     }
 
+    fn get_chessboard(cells_size: u32, initial_position: &str) -> Option<ChessBoard>
+    {
+        let piece_images = PieceImages::new(cells_size as i32);
+        let drawing_area = DrawingArea::new();
+
+        let logic = ChessGame::new_from_fen(initial_position);
+
+        match logic {
+            Some(game_logic) => {
+                drawing_area.connect_draw(move |_, cr|{
+                    ChessBoard::draw_background(cr);
+                    ChessBoard::draw_cells(cr, cells_size);
+                    ChessBoard::draw_pieces(cr, cells_size, &piece_images);
+                    ChessBoard::draw_coordinates(cr, cells_size);
+                    ChessBoard::draw_player_turn(cr, &game_logic, cells_size);
+
+                    Inhibit(false)
+                });
+
+                Some(ChessBoard {
+                    drawing_area,
+                })
+            },
+            _ => None
+        }
+    }
+
     fn draw_background(cr: &Context)
     {
-        let pink_color = [255.0/255.0, 204.0/255.0, 204.0/255.0];
+        let green_color = [60.0/255.0, 204.0/255.0, 100.0/255.0];
         cr.set_source_rgb(
-            pink_color[0],
-            pink_color[1],
-            pink_color[2],
+            green_color[0],
+            green_color[1],
+            green_color[2],
         );
         cr.paint();
     }
@@ -131,5 +153,19 @@ impl ChessBoard
             cr.move_to(letter_x_right, letter_y);
             cr.show_text(letter);
         });
+    }
+
+    fn draw_player_turn(cr: &Context, logic: &ChessGame, cells_size: u32)
+    {
+        let color = if logic.is_white_turn() { [1.0, 1.0, 1.0] } else { [0.0, 0.0, 0.0] };
+        let center = (cells_size as f64) * 8.75;
+        let radius = (cells_size as f64) * 0.25;
+        cr.arc(center, center, radius, 0.0, 2.0 * std::f64::consts::PI);
+        cr.set_source_rgb(
+            color[0],
+            color[1],
+            color[2],
+        );
+        cr.fill();
     }
 }
