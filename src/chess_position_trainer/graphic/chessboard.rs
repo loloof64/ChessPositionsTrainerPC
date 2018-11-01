@@ -37,7 +37,7 @@ impl ChessBoard
 
     fn get_chessboard(cells_size: u32, initial_position: &str) -> Option<ChessBoard>
     {
-        let piece_images = PieceImages::new(cells_size as i32);
+        let piece_images = PieceImages::new((cells_size as f64 * 0.8) as i32);
         let drawing_area = DrawingArea::new();
 
         let logic = ChessGame::new_from_fen(initial_position);
@@ -172,8 +172,8 @@ impl ChessBoard
                         },
                     };
 
-                    let location_x = (cells_size as f64) * (file as f64 + 0.5);
-                    let location_y = (cells_size as f64) * ((7.0-rank as f64) + 0.5);
+                    let location_x = (cells_size as f64) * (file as f64 + 0.5 + 0.1);
+                    let location_y = (cells_size as f64) * ((7.0-rank as f64) + 0.5 + 0.1);
                     cr.set_source_pixbuf(
                         image,
                         location_x,
