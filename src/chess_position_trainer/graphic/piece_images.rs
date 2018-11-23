@@ -1,5 +1,6 @@
 use gdk_pixbuf::Pixbuf;
-use std::path::Path;
+use gio::MemoryInputStream;
+use glib::Bytes;
 
 pub struct PieceImages
 {
@@ -22,89 +23,65 @@ impl PieceImages
 {
     pub fn new(images_size: i32) -> PieceImages
     {
-        let white_pawn = Pixbuf::new_from_file_at_scale(
-            Path::new("resources/Chess_pl.png"),
-            images_size,
-            images_size,
-            true
-        ).ok().unwrap();
+        let white_pawn = PieceImages::load_image(
+            include_bytes!("../../resources/Chess_pl.png"),
+            images_size
+        ).expect("Failed to get white pawn image !");
 
-        let white_knight = Pixbuf::new_from_file_at_scale(
-            Path::new("resources/Chess_nl.png"),
-            images_size,
-            images_size,
-            true
-        ).ok().unwrap();
+        let white_knight = PieceImages::load_image(
+            include_bytes!("../../resources/Chess_nl.png"),
+            images_size
+        ).expect("Failed to get white knight image !");
 
-        let white_bishop = Pixbuf::new_from_file_at_scale(
-            Path::new("resources/Chess_bl.png"),
-            images_size,
-            images_size,
-            true
-        ).ok().unwrap();
+        let white_bishop = PieceImages::load_image(
+            include_bytes!("../../resources/Chess_bl.png"),
+            images_size
+        ).expect("Failed to get white bishop image !");
 
-        let white_rook = Pixbuf::new_from_file_at_scale(
-            Path::new("resources/Chess_rl.png"),
-            images_size,
-            images_size,
-            true
-        ).ok().unwrap();
+        let white_rook = PieceImages::load_image(
+            include_bytes!("../../resources/Chess_rl.png"),
+            images_size
+        ).expect("Failed to get white rook image !");
 
-        let white_queen = Pixbuf::new_from_file_at_scale(
-            Path::new("resources/Chess_ql.png"),
-            images_size,
-            images_size,
-            true
-        ).ok().unwrap();
+        let white_queen = PieceImages::load_image(
+            include_bytes!("../../resources/Chess_ql.png"),
+            images_size
+        ).expect("Failed to get white queen image !");
 
-        let white_king = Pixbuf::new_from_file_at_scale(
-            Path::new("resources/Chess_kl.png"),
-            images_size,
-            images_size,
-            true
-        ).ok().unwrap();
+        let white_king = PieceImages::load_image(
+            include_bytes!("../../resources/Chess_kl.png"),
+            images_size
+        ).expect("Failed to get white king image !");
 
-        let black_pawn = Pixbuf::new_from_file_at_scale(
-            Path::new("resources/Chess_pd.png"),
-            images_size,
-            images_size,
-            true
-        ).ok().unwrap();
+        let black_pawn = PieceImages::load_image(
+            include_bytes!("../../resources/Chess_pd.png"),
+            images_size
+        ).expect("Failed to get black pawn image !");
 
-        let black_knight = Pixbuf::new_from_file_at_scale(
-            Path::new("resources/Chess_nd.png"),
-            images_size,
-            images_size,
-            true
-        ).ok().unwrap();
+        let black_knight = PieceImages::load_image(
+            include_bytes!("../../resources/Chess_nd.png"),
+            images_size
+        ).expect("Failed to get black knight image !");
 
-        let black_bishop = Pixbuf::new_from_file_at_scale(
-            Path::new("resources/Chess_bd.png"),
-            images_size,
-            images_size,
-            true
-        ).ok().unwrap();
+        let black_bishop = PieceImages::load_image(
+            include_bytes!("../../resources/Chess_bd.png"),
+            images_size
+        ).expect("Failed to get black bishop image !");
 
-        let black_rook = Pixbuf::new_from_file_at_scale(
-            Path::new("resources/Chess_rd.png"),
-            images_size,
-            images_size,
-            true
-        ).ok().unwrap();
+        let black_rook = PieceImages::load_image(
+            include_bytes!("../../resources/Chess_rd.png"),
+            images_size
+        ).expect("Failed to get black rook image !");
 
-        let black_queen = Pixbuf::new_from_file_at_scale(
-            Path::new("resources/Chess_qd.png"),
-            images_size,
-            images_size,
-            true
-        ).ok().unwrap();
+        let black_queen = PieceImages::load_image(
+            include_bytes!("../../resources/Chess_qd.png"),
+            images_size
+        ).expect("Failed to get black queen image !");
 
-        let black_king = Pixbuf::new_from_file_at_scale(
-            Path::new("resources/Chess_kd.png"),
-            images_size,
-            images_size,
-            true
-        ).ok().unwrap();
+        let black_king = PieceImages::load_image(
+            include_bytes!("../../resources/Chess_kd.png"),
+            images_size
+        ).expect("Failed to get black king image !");
 
         PieceImages 
         {
@@ -123,6 +100,7 @@ impl PieceImages
             black_king,
         }
     }
+
 
     pub fn get_white_pawn(&self) -> &Pixbuf
     {
@@ -182,5 +160,21 @@ impl PieceImages
     pub fn get_black_king(&self) -> &Pixbuf
     {
         &self.black_king
+    }
+
+    fn load_image(image_bytes: &'static [u8], size: i32) -> Option<Pixbuf>
+    {
+        let image_stream = MemoryInputStream::new_from_bytes(
+            &Bytes::from_static(image_bytes)
+        );
+        let image_pixbuf = Pixbuf::new_from_stream_at_scale(&image_stream, size, size, true, None);
+        let image = match image_pixbuf {
+            Ok(image) => Some(image),
+            Err(e) => {
+                println!("Failed to get image ! ({})", e);
+                None
+            }
+        };
+        image
     }
 }

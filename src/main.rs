@@ -1,6 +1,8 @@
 extern crate shakmaty;
 extern crate gtk;
 extern crate gdk;
+extern crate gio;
+extern crate glib;
 extern crate cairo;
 extern crate gdk_pixbuf;
 
