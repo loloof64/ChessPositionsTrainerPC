@@ -3,8 +3,6 @@ use gtk::{Window, WindowType};
 use gdk_pixbuf::Pixbuf;
 use gio::MemoryInputStream;
 use glib::Bytes;
-
-
 use chess_position_trainer::graphic::ChessBoard;
 
 pub struct MainWindow

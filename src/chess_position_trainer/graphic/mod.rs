@@ -6,3 +6,6 @@ pub use self::chessboard::ChessBoard;
 
 pub mod piece_images;
 pub use self::piece_images::PieceImages;
+
+pub mod load_images;
+pub use self::load_images::load_image;
