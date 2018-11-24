@@ -1,9 +1,9 @@
 use gtk::prelude::*;
-use gtk::{Window, WindowType};
+use gtk::{Window, WindowType, Button, Image, Box as GtkBox, Orientation};
 use gdk_pixbuf::Pixbuf;
 use gio::MemoryInputStream;
 use glib::Bytes;
-use chess_position_trainer::graphic::ChessBoard;
+use chess_position_trainer::graphic::{ChessBoard, load_image};
 
 pub struct MainWindow
 {
@@ -35,7 +35,44 @@ impl MainWindow
             "rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2"
         ).expect("Failed to intialize the chessboard !");
 
-        self.window.add(chessboard.get_drawing_area());
+        let mut reverse_board_button = Button::new();
+        let reverse_board_button_image = Image::new_from_pixbuf(
+            &load_image(
+                include_bytes!("../../resources/UpDown.png"),
+                20,
+            ).expect("Could not find UpDown image !")
+        );
+        reverse_board_button.set_image(&reverse_board_button_image);
+
+        let buttons_hbox = GtkBox::new(
+            Orientation::Horizontal,
+            20,
+        );
+        buttons_hbox.pack_start(
+            &reverse_board_button,
+            true,
+            false,
+            10,
+        );
+
+        let window_vbox = GtkBox::new(
+            Orientation::Vertical,
+            0,
+        );
+        window_vbox.pack_start(
+            &buttons_hbox,
+            false,
+            false,
+            10,
+        );
+        window_vbox.pack_start(
+            chessboard.get_drawing_area(),
+            true,
+            true,
+            0,
+        );
+
+        self.window.add(&window_vbox);
         
         self.window.connect_delete_event(|_, _| {
             gtk::main_quit();
@@ -45,8 +82,8 @@ impl MainWindow
 
     fn set_size_and_title(&mut self, cells_size: u32){
         self.window.set_title("Chess Position Trainer");
-        let window_size = cells_size as i32 * 9;
-        self.window.set_default_size(window_size, window_size);
+        let window_width = cells_size as i32 * 9;
+        self.window.set_default_size(window_width, window_width + 65);
     }
 
     fn set_icon(&mut self){
