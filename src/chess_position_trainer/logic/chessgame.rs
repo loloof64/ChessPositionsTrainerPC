@@ -1,6 +1,7 @@
 use shakmaty::{Piece, Square};
 use shakmaty::fen::Fen;
 
+#[derive(Clone)]
 pub struct ChessGame
 {
     position: Fen,
@@ -29,9 +30,4 @@ impl ChessGame
     {
         self.position.board.piece_at(Square::new((file + rank * 8) as i8))
     }
-
-    /*pub fn get_position_fen(&self) -> &str
-    {
-        self.board
-    }*/
 }

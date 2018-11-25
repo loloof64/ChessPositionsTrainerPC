@@ -35,7 +35,7 @@ impl MainWindow
             "rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2"
         ).expect("Failed to intialize the chessboard !");
 
-        let mut reverse_board_button = Button::new();
+        let reverse_board_button = Button::new();
         let reverse_board_button_image = Image::new_from_pixbuf(
             &load_image(
                 include_bytes!("../../resources/UpDown.png"),

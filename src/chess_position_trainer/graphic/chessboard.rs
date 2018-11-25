@@ -6,15 +6,20 @@ use cairo::enums::{FontSlant, FontWeight};
 use shakmaty::Role;
 use chess_position_trainer::graphic::PieceImages;
 use chess_position_trainer::logic::chessgame::ChessGame;
+use std::rc::Rc;
 
+#[derive(Clone)]
 pub struct ChessBoard
 {
     drawing_area: DrawingArea,
+    reversed: bool,
+    logic: ChessGame,
+    cells_size: u32,
 }
 
 impl ChessBoard
 {
-    pub fn new_from_default(cells_size: u32) -> Option<ChessBoard>
+    pub fn new_from_default(cells_size: u32) -> Option<Rc<ChessBoard>>
     {
         ChessBoard::get_chessboard(
             cells_size,
@@ -22,7 +27,7 @@ impl ChessBoard
         )
     }
 
-    pub fn new_from_fen(cells_size: u32, initial_position: &str) -> Option<ChessBoard>
+    pub fn new_from_fen(cells_size: u32, initial_position: &str) -> Option<Rc<ChessBoard>>
     {
         ChessBoard::get_chessboard(
             cells_size,
@@ -30,39 +35,56 @@ impl ChessBoard
         )
     }
 
+    pub fn reverse(&mut self) 
+    {
+        self.reversed = ! self.reversed;
+    }
+
     pub fn get_drawing_area(&self) -> &DrawingArea
     {
         &self.drawing_area
     }
 
-    fn get_chessboard(cells_size: u32, initial_position: &str) -> Option<ChessBoard>
+    
+
+    fn get_chessboard(cells_size: u32, initial_position: &str) -> Option<Rc<ChessBoard>>
     {
-        let piece_images = PieceImages::new((cells_size as f64 * 0.8) as i32);
         let drawing_area = DrawingArea::new();
 
         let logic = ChessGame::new_from_fen(initial_position);
 
         match logic {
             Some(game_logic) => {
-                drawing_area.connect_draw(move |_, cr|{
-                    ChessBoard::draw_background(cr);
-                    ChessBoard::draw_cells(cr, cells_size);
-                    ChessBoard::draw_pieces(cr, cells_size, &game_logic, &piece_images);
-                    ChessBoard::draw_coordinates(cr, cells_size);
-                    ChessBoard::draw_player_turn(cr, cells_size, &game_logic);
+                let chess_board = ChessBoard {
+                    drawing_area,
+                    reversed: false,
+                    logic: game_logic,
+                    cells_size,
+                };
 
+                let chess_board_ref1 = Rc::new(chess_board);
+                let chess_board_ref2 = chess_board_ref1.clone();
+
+                chess_board_ref2.drawing_area.connect_draw(move |_drawing_area, cr|{
+                    chess_board_ref1.paint(cr);
                     Inhibit(false)
                 });
 
-                Some(ChessBoard {
-                    drawing_area,
-                })
+                Some(chess_board_ref2)
             },
             _ => None
         }
     }
 
-    fn draw_background(cr: &Context)
+    fn paint(&self, cr: &Context){
+       self.draw_background(cr);
+       self.draw_cells(cr);
+       self.draw_pieces(cr);
+       self.draw_coordinates(cr);
+       self.draw_player_turn(cr);
+    }
+
+    fn draw_background(&self, cr: &Context)
     {
         let green_color = [60.0/255.0, 204.0/255.0, 100.0/255.0];
         cr.set_source_rgb(
@@ -73,7 +95,7 @@ impl ChessBoard
         cr.paint();
     }
 
-    fn draw_cells(cr: &Context, cells_size: u32)
+    fn draw_cells(&self, cr: &Context)
     {
         (0..8).for_each(|rank| {
             (0..8).for_each(|file| {
@@ -83,9 +105,9 @@ impl ChessBoard
                 let is_white_cell = (file + rank) % 2 == 0;
                 let cell_color = if is_white_cell {white_cell_color} else {black_cell_color};
 
-                let rect_x = (cells_size as f64) * (0.5 + (file as f64));
-                let rect_y = (cells_size as f64) * (0.5 + (rank as f64));
-                let rect_size = cells_size as f64;
+                let rect_x = (self.cells_size as f64) * (0.5 + (file as f64));
+                let rect_y = (self.cells_size as f64) * (0.5 + (rank as f64));
+                let rect_size = self.cells_size as f64;
 
                 cr.rectangle(
                     rect_x,
@@ -103,79 +125,83 @@ impl ChessBoard
         });
     }
 
-    fn draw_pieces(cr: &Context, cells_size: u32, 
-        logic: &ChessGame, piece_images: &PieceImages)
+    fn draw_pieces(&self, cr: &Context)
     {
         (0..8).for_each(|rank| {
             (0..8).for_each(|file| {
-                if let Some(piece) = logic.piece_at_cell(file, rank) {
+                let real_file = if self.reversed { 7-file } else { file };
+                let real_rank = if self.reversed { 7-rank } else { rank };
+
+                let piece_size = (self.cells_size as f64 * 0.8) as i32;
+
+                if let Some(piece) = self.logic.piece_at_cell(real_file, real_rank) {
                     let image = match piece.role {
                         Role::Pawn => {
                             if piece.color.is_white() 
                             {
-                                piece_images.get_white_pawn()
+                                PieceImages::get_white_pawn(piece_size)
                             }
                             else
                             {
-                                piece_images.get_black_pawn()
+                                PieceImages::get_black_pawn(piece_size)
                             }
                         },
                         Role::Knight => {
                             if piece.color.is_white() 
                             {
-                                piece_images.get_white_knight()
+                                PieceImages::get_white_knight(piece_size)
                             }
                             else
                             {
-                                piece_images.get_black_knight()
+                                PieceImages::get_black_knight(piece_size)
                             }
                         },
                         Role::Bishop => {
                             if piece.color.is_white() 
                             {
-                                piece_images.get_white_bishop()
+                                PieceImages::get_white_bishop(piece_size)
                             }
                             else
                             {
-                                piece_images.get_black_bishop()
+                                PieceImages::get_black_bishop(piece_size)
                             }
                         },
                         Role::Rook => {
                             if piece.color.is_white() 
                             {
-                                piece_images.get_white_rook()
+                                PieceImages::get_white_rook(piece_size)
                             }
                             else
                             {
-                                piece_images.get_black_rook()
+                                PieceImages::get_black_rook(piece_size)
                             }
                         },
                         Role::Queen => {
                             if piece.color.is_white() 
                             {
-                                piece_images.get_white_queen()
+                                PieceImages::get_white_queen(piece_size)
                             }
                             else
                             {
-                                piece_images.get_black_queen()
+                                PieceImages::get_black_queen(piece_size)
                             }
                         },
                         Role::King => {
                             if piece.color.is_white() 
                             {
-                                piece_images.get_white_king()
+                                PieceImages::get_white_king(piece_size)
                             }
                             else
                             {
-                                piece_images.get_black_king()
+                                PieceImages::get_black_king(piece_size)
                             }
                         },
                     };
 
-                    let location_x = (cells_size as f64) * (file as f64 + 0.5 + 0.1);
-                    let location_y = (cells_size as f64) * ((7.0-rank as f64) + 0.5 + 0.1);
+                    let location_x = (self.cells_size as f64) * (file as f64 + 0.5 + 0.1);
+                    let location_y = (self.cells_size as f64) * ((7.0-rank as f64) + 0.5 + 0.1);
                     cr.set_source_pixbuf(
-                        image,
+                        &image,
                         location_x,
                         location_y
                     );
@@ -185,7 +211,7 @@ impl ChessBoard
         });
     }
 
-    fn draw_coordinates(cr: &Context, cells_size: u32)
+    fn draw_coordinates(&self, cr: &Context)
     {
         let files = ["A", "B", "C", "D", "E", "F", "G", "H"];
         let ranks = ["8", "7", "6", "5", "4", "3", "2", "1"];
@@ -196,13 +222,15 @@ impl ChessBoard
             FontSlant::Normal,
             FontWeight::Bold
         );
-        cr.set_font_size((cells_size as f64) * 0.38);
+        cr.set_font_size((self.cells_size as f64) * 0.38);
         
         (0..8).for_each(|file_index| {
-            let letter = files[file_index];
-            let letter_x = (cells_size as f64) * (0.9 + (file_index as f64));
-            let letter_y_top = (cells_size as f64) * 0.4;
-            let letter_y_bottom = (cells_size as f64) * 8.9;
+            let real_file_index = if self.reversed { 7 - file_index } else { file_index };
+
+            let letter = files[real_file_index];
+            let letter_x = (self.cells_size as f64) * (0.9 + (real_file_index as f64));
+            let letter_y_top = (self.cells_size as f64) * 0.4;
+            let letter_y_bottom = (self.cells_size as f64) * 8.9;
 
             cr.move_to(letter_x, letter_y_top);
             cr.show_text(letter);
@@ -212,10 +240,12 @@ impl ChessBoard
         });
 
         (0..8).for_each(|rank_index| {
-            let letter = ranks[rank_index];
-            let letter_y = (cells_size as f64) * (1.2 + (rank_index as f64));
-            let letter_x_left = (cells_size as f64) * 0.1;
-            let letter_x_right = (cells_size as f64) * 8.6;
+            let real_rank_index = if self.reversed { 7 - rank_index } else { rank_index };
+
+            let letter = ranks[real_rank_index];
+            let letter_y = (self.cells_size as f64) * (1.2 + (real_rank_index as f64));
+            let letter_x_left = (self.cells_size as f64) * 0.1;
+            let letter_x_right = (self.cells_size as f64) * 8.6;
 
             cr.move_to(letter_x_left, letter_y);
             cr.show_text(letter);
@@ -225,11 +255,11 @@ impl ChessBoard
         });
     }
 
-    fn draw_player_turn(cr: &Context, cells_size: u32, logic: &ChessGame)
+    fn draw_player_turn(&self, cr: &Context)
     {
-        let color = if logic.is_white_turn() { [1.0, 1.0, 1.0] } else { [0.0, 0.0, 0.0] };
-        let center = (cells_size as f64) * 8.75;
-        let radius = (cells_size as f64) * 0.25;
+        let color = if self.logic.is_white_turn() { [1.0, 1.0, 1.0] } else { [0.0, 0.0, 0.0] };
+        let center = (self.cells_size as f64) * 8.75;
+        let radius = (self.cells_size as f64) * 0.25;
         cr.arc(center, center, radius, 0.0, 2.0 * std::f64::consts::PI);
         cr.set_source_rgb(
             color[0],
