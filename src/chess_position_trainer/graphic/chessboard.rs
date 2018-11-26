@@ -1,3 +1,5 @@
+use std::cell::RefCell;
+use std::rc::Rc;
 use gtk::prelude::*;
 use gdk::prelude::*;
 use gtk::DrawingArea;
@@ -6,7 +8,6 @@ use cairo::enums::{FontSlant, FontWeight};
 use shakmaty::Role;
 use chess_position_trainer::graphic::PieceImages;
 use chess_position_trainer::logic::chessgame::ChessGame;
-use std::rc::Rc;
 
 #[derive(Clone)]
 pub struct ChessBoard
@@ -19,7 +20,7 @@ pub struct ChessBoard
 
 impl ChessBoard
 {
-    pub fn new_from_default(cells_size: u32) -> Option<Rc<ChessBoard>>
+    pub fn new_from_default(cells_size: u32) -> Option<Rc<RefCell<ChessBoard>>>
     {
         ChessBoard::get_chessboard(
             cells_size,
@@ -27,7 +28,7 @@ impl ChessBoard
         )
     }
 
-    pub fn new_from_fen(cells_size: u32, initial_position: &str) -> Option<Rc<ChessBoard>>
+    pub fn new_from_fen(cells_size: u32, initial_position: &str) -> Option<Rc<RefCell<ChessBoard>>>
     {
         ChessBoard::get_chessboard(
             cells_size,
@@ -38,6 +39,7 @@ impl ChessBoard
     pub fn reverse(&mut self) 
     {
         self.reversed = ! self.reversed;
+        self.drawing_area.queue_draw();
     }
 
     pub fn get_drawing_area(&self) -> &DrawingArea
@@ -47,7 +49,7 @@ impl ChessBoard
 
     
 
-    fn get_chessboard(cells_size: u32, initial_position: &str) -> Option<Rc<ChessBoard>>
+    fn get_chessboard(cells_size: u32, initial_position: &str) -> Option<Rc<RefCell<ChessBoard>>>
     {
         let drawing_area = DrawingArea::new();
 
@@ -62,26 +64,26 @@ impl ChessBoard
                     cells_size,
                 };
 
-                let chess_board_ref1 = Rc::new(chess_board);
-                let chess_board_ref2 = chess_board_ref1.clone();
+                let chess_board_ref = Rc::new(RefCell::new(chess_board));
 
-                chess_board_ref2.drawing_area.connect_draw(move |_drawing_area, cr|{
-                    chess_board_ref1.paint(cr);
+                let chess_board_ref_2 = chess_board_ref.clone();
+                chess_board_ref.borrow().drawing_area.connect_draw(move |_drawing_area, cr|{
+                    chess_board_ref_2.borrow().paint(cr);
                     Inhibit(false)
                 });
 
-                Some(chess_board_ref2)
+                Some(chess_board_ref)
             },
             _ => None
         }
     }
 
     fn paint(&self, cr: &Context){
-       self.draw_background(cr);
-       self.draw_cells(cr);
-       self.draw_pieces(cr);
-       self.draw_coordinates(cr);
-       self.draw_player_turn(cr);
+        self.draw_background(cr);
+        self.draw_cells(cr);
+        self.draw_pieces(cr);
+        self.draw_coordinates(cr);
+        self.draw_player_turn(cr);
     }
 
     fn draw_background(&self, cr: &Context)
@@ -227,7 +229,7 @@ impl ChessBoard
         (0..8).for_each(|file_index| {
             let real_file_index = if self.reversed { 7 - file_index } else { file_index };
 
-            let letter = files[real_file_index];
+            let letter = files[file_index];
             let letter_x = (self.cells_size as f64) * (0.9 + (real_file_index as f64));
             let letter_y_top = (self.cells_size as f64) * 0.4;
             let letter_y_bottom = (self.cells_size as f64) * 8.9;
@@ -242,7 +244,7 @@ impl ChessBoard
         (0..8).for_each(|rank_index| {
             let real_rank_index = if self.reversed { 7 - rank_index } else { rank_index };
 
-            let letter = ranks[real_rank_index];
+            let letter = ranks[rank_index];
             let letter_y = (self.cells_size as f64) * (1.2 + (real_rank_index as f64));
             let letter_x_left = (self.cells_size as f64) * 0.1;
             let letter_x_right = (self.cells_size as f64) * 8.6;

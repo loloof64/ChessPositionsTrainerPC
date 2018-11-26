@@ -44,6 +44,11 @@ impl MainWindow
         );
         reverse_board_button.set_image(&reverse_board_button_image);
 
+        let click_handler_chessboard = chessboard.clone();
+        reverse_board_button.connect_clicked(move |_button|{
+            click_handler_chessboard.borrow_mut().reverse();
+        });
+
         let buttons_hbox = GtkBox::new(
             Orientation::Horizontal,
             20,
@@ -66,7 +71,7 @@ impl MainWindow
             10,
         );
         window_vbox.pack_start(
-            chessboard.get_drawing_area(),
+            chessboard.borrow().get_drawing_area(),
             true,
             true,
             0,
