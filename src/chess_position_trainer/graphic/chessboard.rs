@@ -20,7 +20,7 @@ pub struct ChessBoard
 
 impl ChessBoard
 {
-    pub fn new_from_default(cells_size: u32) -> Option<Rc<RefCell<ChessBoard>>>
+    pub fn new_from_default(cells_size: u32) -> Result<Rc<RefCell<ChessBoard>>, String>
     {
         ChessBoard::get_chessboard(
             cells_size,
@@ -28,7 +28,7 @@ impl ChessBoard
         )
     }
 
-    pub fn new_from_fen(cells_size: u32, initial_position: &str) -> Option<Rc<RefCell<ChessBoard>>>
+    pub fn new_from_fen(cells_size: u32, initial_position: &str) -> Result<Rc<RefCell<ChessBoard>>, String>
     {
         ChessBoard::get_chessboard(
             cells_size,
@@ -49,7 +49,7 @@ impl ChessBoard
 
     
 
-    fn get_chessboard(cells_size: u32, initial_position: &str) -> Option<Rc<RefCell<ChessBoard>>>
+    fn get_chessboard(cells_size: u32, initial_position: &str) -> Result<Rc<RefCell<ChessBoard>>, String>
     {
         let drawing_area = DrawingArea::new();
 
@@ -72,9 +72,9 @@ impl ChessBoard
                     Inhibit(false)
                 });
 
-                Some(chess_board_ref)
+                Ok(chess_board_ref)
             },
-            _ => None
+            None => Err(format!("Bad FEN {} !", initial_position))
         }
     }
 

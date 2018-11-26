@@ -30,9 +30,8 @@ impl MainWindow
         self.set_size_and_title(cells_size);
         self.set_icon();
 
-        let chessboard = ChessBoard::new_from_fen(
-            cells_size, 
-            "rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2"
+        let chessboard = ChessBoard::new_from_default(
+            cells_size
         ).expect("Failed to intialize the chessboard !");
 
         let reverse_board_button = Button::new();
