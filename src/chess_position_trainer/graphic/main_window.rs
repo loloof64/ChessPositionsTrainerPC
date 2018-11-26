@@ -26,13 +26,11 @@ impl MainWindow
 
     fn initialize(&mut self)
     {
-        let cells_size = 50u32;
-        self.set_size_and_title(cells_size);
+        self.set_size_and_title();
         self.set_icon();
 
-        let chessboard = ChessBoard::new_from_default(
-            cells_size
-        ).expect("Failed to intialize the chessboard !");
+        let chessboard = ChessBoard::new_from_default()
+            .expect("Failed to intialize the chessboard !");
 
         let reverse_board_button = Button::new();
         let reverse_board_button_image = Image::new_from_pixbuf(
@@ -84,9 +82,9 @@ impl MainWindow
         });
     }
 
-    fn set_size_and_title(&mut self, cells_size: u32){
+    fn set_size_and_title(&mut self){
         self.window.set_title("Chess Position Trainer");
-        let window_width = cells_size as i32 * 9;
+        let window_width = 50i32 * 9;
         self.window.set_default_size(window_width, window_width + 65);
     }
 

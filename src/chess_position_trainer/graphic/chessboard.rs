@@ -2,6 +2,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use gtk::prelude::*;
 use gdk::prelude::*;
+use gdk::{EventMask, EventType};
 use gtk::DrawingArea;
 use cairo::Context;
 use cairo::enums::{FontSlant, FontWeight};
@@ -20,18 +21,16 @@ pub struct ChessBoard
 
 impl ChessBoard
 {
-    pub fn new_from_default(cells_size: u32) -> Result<Rc<RefCell<ChessBoard>>, String>
+    pub fn new_from_default() -> Result<Rc<RefCell<ChessBoard>>, String>
     {
         ChessBoard::new(
-            cells_size,
             "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
         )
     }
 
-    pub fn new(cells_size: u32, initial_position: &str) -> Result<Rc<RefCell<ChessBoard>>, String>
+    pub fn new(initial_position: &str) -> Result<Rc<RefCell<ChessBoard>>, String>
     {
         ChessBoard::get_chessboard(
-            cells_size,
             initial_position,
         )
     }
@@ -47,11 +46,24 @@ impl ChessBoard
         &self.drawing_area
     }
 
-    
-
-    fn get_chessboard(cells_size: u32, initial_position: &str) -> Result<Rc<RefCell<ChessBoard>>, String>
+    fn get_chessboard(initial_position: &str) -> Result<Rc<RefCell<ChessBoard>>, String>
     {
         let drawing_area = DrawingArea::new();
+        drawing_area.add_events((
+            EventMask::BUTTON1_MOTION_MASK.bits() |
+            EventMask::BUTTON_PRESS_MASK.bits() |
+            EventMask::BUTTON_RELEASE_MASK.bits()
+        ) as i32);
+
+        drawing_area.connect_event(|_self, event| {
+            match event.get_event_type() {
+                EventType::ButtonPress => println!("Button pressed !"),
+                EventType::ButtonRelease => println!("Button released !"),
+                EventType::MotionNotify => println!("Button moved !"),
+               _ => {} 
+            }
+            Inhibit(false)
+        });
 
         let logic = ChessGame::new_from_fen(initial_position);
 
@@ -61,7 +73,7 @@ impl ChessBoard
                     drawing_area,
                     reversed: false,
                     logic: game_logic,
-                    cells_size,
+                    cells_size: 50u32,
                 };
 
                 let chess_board_ref = Rc::new(RefCell::new(chess_board));
