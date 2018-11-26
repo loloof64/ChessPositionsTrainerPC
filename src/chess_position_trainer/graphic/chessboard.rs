@@ -55,16 +55,6 @@ impl ChessBoard
             EventMask::BUTTON_RELEASE_MASK.bits()
         ) as i32);
 
-        drawing_area.connect_event(|_self, event| {
-            match event.get_event_type() {
-                EventType::ButtonPress => println!("Button pressed !"),
-                EventType::ButtonRelease => println!("Button released !"),
-                EventType::MotionNotify => println!("Button moved !"),
-               _ => {} 
-            }
-            Inhibit(false)
-        });
-
         let logic = ChessGame::new_from_fen(initial_position);
 
         match logic {
@@ -84,10 +74,53 @@ impl ChessBoard
                     Inhibit(false)
                 });
 
+                let chess_board_ref_3 = chess_board_ref.clone();
+                chess_board_ref.borrow().drawing_area.connect_event(move |_self, event| {
+                    let coords = event.get_coords().expect("Failed to get mouse coordinates !");
+                    
+                    match event.get_event_type() {
+                        EventType::ButtonPress => chess_board_ref_3.borrow().handle_mouse_pressed(coords),
+                        EventType::ButtonRelease => chess_board_ref_3.borrow().handle_mouse_released(coords),
+                        EventType::MotionNotify => chess_board_ref_3.borrow().handle_mouse_moved(coords),
+                    _ => {} 
+                    }
+                    Inhibit(false)
+                });
+
                 Ok(chess_board_ref)
             },
             None => Err(format!("Bad FEN {} !", initial_position))
         }
+    }
+
+    fn handle_mouse_pressed(&self, coords: (f64, f64)){
+        let cells_size = self.cells_size as f64;
+        let cell_coords = (
+            ((coords.0 - (cells_size * 0.5)) / cells_size) as i32,
+            7 - (((coords.1 - (cells_size * 0.5)) / cells_size) as i32),
+        );
+
+        println!("Button pressed at {:?} !", cell_coords);
+    }
+
+    fn handle_mouse_released(&self, coords: (f64, f64)){
+        let cells_size = self.cells_size as f64;
+        let cell_coords = (
+            ((coords.0 - (cells_size * 0.5)) / cells_size) as i32,
+            7 - (((coords.1 - (cells_size * 0.5)) / cells_size) as i32),
+        );
+
+        println!("Button released at {:?} !", cell_coords);
+    }
+
+    fn handle_mouse_moved(&self, coords: (f64, f64)){
+        let cells_size = self.cells_size as f64;
+        let cell_coords = (
+            ((coords.0 - (cells_size * 0.5)) / cells_size) as i32,
+            7 - (((coords.1 - (cells_size * 0.5)) / cells_size) as i32),
+        );
+
+        println!("Button moved at {:?} !", cell_coords);
     }
 
     fn paint(&self, cr: &Context){
