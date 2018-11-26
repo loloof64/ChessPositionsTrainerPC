@@ -22,13 +22,13 @@ impl ChessBoard
 {
     pub fn new_from_default(cells_size: u32) -> Result<Rc<RefCell<ChessBoard>>, String>
     {
-        ChessBoard::new_from_fen(
+        ChessBoard::new(
             cells_size,
             "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
         )
     }
 
-    pub fn new_from_fen(cells_size: u32, initial_position: &str) -> Result<Rc<RefCell<ChessBoard>>, String>
+    pub fn new(cells_size: u32, initial_position: &str) -> Result<Rc<RefCell<ChessBoard>>, String>
     {
         ChessBoard::get_chessboard(
             cells_size,
