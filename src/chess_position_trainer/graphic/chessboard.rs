@@ -95,30 +95,39 @@ impl ChessBoard
 
     fn handle_mouse_pressed(&self, coords: (f64, f64)){
         let cells_size = self.cells_size as f64;
-        let cell_coords = (
+        let mut cell_coords = (
             ((coords.0 - (cells_size * 0.5)) / cells_size) as i32,
             7 - (((coords.1 - (cells_size * 0.5)) / cells_size) as i32),
         );
+        if self.reversed {
+            cell_coords = (7-cell_coords.0, 7-cell_coords.1);
+        }
 
         println!("Button pressed at {:?} !", cell_coords);
     }
 
     fn handle_mouse_released(&self, coords: (f64, f64)){
         let cells_size = self.cells_size as f64;
-        let cell_coords = (
+        let mut cell_coords = (
             ((coords.0 - (cells_size * 0.5)) / cells_size) as i32,
             7 - (((coords.1 - (cells_size * 0.5)) / cells_size) as i32),
         );
+        if self.reversed {
+            cell_coords = (7-cell_coords.0, 7-cell_coords.1);
+        }
 
         println!("Button released at {:?} !", cell_coords);
     }
 
     fn handle_mouse_moved(&self, coords: (f64, f64)){
         let cells_size = self.cells_size as f64;
-        let cell_coords = (
+        let mut cell_coords = (
             ((coords.0 - (cells_size * 0.5)) / cells_size) as i32,
             7 - (((coords.1 - (cells_size * 0.5)) / cells_size) as i32),
         );
+        if self.reversed {
+            cell_coords = (7-cell_coords.0, 7-cell_coords.1);
+        }
 
         println!("Button moved at {:?} !", cell_coords);
     }
