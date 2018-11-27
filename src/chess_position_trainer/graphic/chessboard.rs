@@ -6,7 +6,7 @@ use gdk::{EventMask, EventType};
 use gtk::DrawingArea;
 use cairo::Context;
 use cairo::enums::{FontSlant, FontWeight};
-use shakmaty::Role;
+use shakmaty::{Role, Piece};
 use chess_position_trainer::graphic::PieceImages;
 use chess_position_trainer::logic::chessgame::ChessGame;
 
@@ -17,6 +17,23 @@ pub struct ChessBoard
     reversed: bool,
     logic: ChessGame,
     cells_size: u32,
+    moved_piece: Option<MovedPiece>,
+}
+
+#[derive(Clone, Debug)]
+struct MovedPiece
+{
+    piece_type: Piece,
+    coords_x: f64,
+    coords_y: f64,
+}
+
+impl MovedPiece {
+    fn translate_to(&mut self, x: f64, y: f64)
+    {
+        self.coords_x = x;
+        self.coords_y = y;
+    }
 }
 
 impl ChessBoard
@@ -64,6 +81,7 @@ impl ChessBoard
                     reversed: false,
                     logic: game_logic,
                     cells_size: 50u32,
+                    moved_piece: None,
                 };
 
                 let chess_board_ref = Rc::new(RefCell::new(chess_board));
@@ -79,9 +97,9 @@ impl ChessBoard
                     let coords = event.get_coords().expect("Failed to get mouse coordinates !");
                     
                     match event.get_event_type() {
-                        EventType::ButtonPress => chess_board_ref_3.borrow().handle_mouse_pressed(coords),
-                        EventType::ButtonRelease => chess_board_ref_3.borrow().handle_mouse_released(coords),
-                        EventType::MotionNotify => chess_board_ref_3.borrow().handle_mouse_moved(coords),
+                        EventType::ButtonPress => chess_board_ref_3.borrow_mut().handle_mouse_pressed(coords),
+                        EventType::ButtonRelease => chess_board_ref_3.borrow_mut().handle_mouse_released(coords),
+                        EventType::MotionNotify => chess_board_ref_3.borrow_mut().handle_mouse_moved(coords),
                     _ => {} 
                     }
                     Inhibit(false)
@@ -93,7 +111,7 @@ impl ChessBoard
         }
     }
 
-    fn handle_mouse_pressed(&self, coords: (f64, f64)){
+    fn handle_mouse_pressed(&mut self, coords: (f64, f64)){
         let cells_size = self.cells_size as f64;
         let mut cell_coords = (
             ((coords.0 - (cells_size * 0.5)) / cells_size) as i32,
@@ -103,10 +121,18 @@ impl ChessBoard
             cell_coords = (7-cell_coords.0, 7-cell_coords.1);
         }
 
-        println!("Button pressed at {:?} !", cell_coords);
+        let (coords_x, coords_y) = coords;
+        let moved_piece = self.logic.piece_at_cell(cell_coords.0 as i8, cell_coords.1 as i8);
+        if let Some(piece_type) = moved_piece {
+            self.moved_piece = Some(MovedPiece{
+                coords_x,
+                coords_y,
+                piece_type,
+            });
+        }
     }
 
-    fn handle_mouse_released(&self, coords: (f64, f64)){
+    fn handle_mouse_released(&mut self, coords: (f64, f64)){
         let cells_size = self.cells_size as f64;
         let mut cell_coords = (
             ((coords.0 - (cells_size * 0.5)) / cells_size) as i32,
@@ -119,17 +145,12 @@ impl ChessBoard
         println!("Button released at {:?} !", cell_coords);
     }
 
-    fn handle_mouse_moved(&self, coords: (f64, f64)){
-        let cells_size = self.cells_size as f64;
-        let mut cell_coords = (
-            ((coords.0 - (cells_size * 0.5)) / cells_size) as i32,
-            7 - (((coords.1 - (cells_size * 0.5)) / cells_size) as i32),
-        );
-        if self.reversed {
-            cell_coords = (7-cell_coords.0, 7-cell_coords.1);
-        }
+    fn handle_mouse_moved(&mut self, coords: (f64, f64)){
+        if let Some(ref mut move_spec) = self.moved_piece {
+            move_spec.translate_to(coords.0, coords.1);
 
-        println!("Button moved at {:?} !", cell_coords);
+            println!("Moved piece : {:?}", move_spec);
+        }
     }
 
     fn paint(&self, cr: &Context){
