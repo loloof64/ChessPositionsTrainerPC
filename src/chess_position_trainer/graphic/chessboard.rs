@@ -4,6 +4,7 @@ use gtk::prelude::*;
 use gdk::prelude::*;
 use gdk::{EventMask, EventType};
 use gtk::DrawingArea;
+use gdk_pixbuf::Pixbuf;
 use cairo::Context;
 use cairo::enums::{FontSlant, FontWeight};
 use shakmaty::{Role, Piece};
@@ -26,6 +27,8 @@ struct MovedPiece
     piece_type: Piece,
     coords_x: f64,
     coords_y: f64,
+    file: i32,
+    rank: i32
 }
 
 impl MovedPiece {
@@ -128,7 +131,11 @@ impl ChessBoard
                 coords_x,
                 coords_y,
                 piece_type,
+                file: cell_coords.0,
+                rank: cell_coords.1,
             });
+
+            self.drawing_area.queue_draw();
         }
     }
 
@@ -142,14 +149,15 @@ impl ChessBoard
             cell_coords = (7-cell_coords.0, 7-cell_coords.1);
         }
 
-        println!("Button released at {:?} !", cell_coords);
+        self.moved_piece = None;
+        self.drawing_area.queue_draw();
     }
 
     fn handle_mouse_moved(&mut self, coords: (f64, f64)){
         if let Some(ref mut move_spec) = self.moved_piece {
             move_spec.translate_to(coords.0, coords.1);
+            self.drawing_area.queue_draw();
 
-            println!("Moved piece : {:?}", move_spec);
         }
     }
 
@@ -157,6 +165,7 @@ impl ChessBoard
         self.draw_background(cr);
         self.draw_cells(cr);
         self.draw_pieces(cr);
+        self.draw_moved_piece(cr);
         self.draw_coordinates(cr);
         self.draw_player_turn(cr);
     }
@@ -206,86 +215,48 @@ impl ChessBoard
     {
         (0..8).for_each(|rank| {
             (0..8).for_each(|file| {
-                let real_file = if self.reversed { 7-file } else { file };
-                let real_rank = if self.reversed { 7-rank } else { rank };
+                
+                let real_file = (if self.reversed { 7-file } else { file }) as i32;
+                let real_rank = (if self.reversed { 7-rank } else { rank }) as i32;
 
                 let piece_size = (self.cells_size as f64 * 0.8) as i32;
 
-                if let Some(piece) = self.logic.piece_at_cell(real_file, real_rank) {
-                    let image = match piece.role {
-                        Role::Pawn => {
-                            if piece.color.is_white() 
-                            {
-                                PieceImages::get_white_pawn(piece_size)
-                            }
-                            else
-                            {
-                                PieceImages::get_black_pawn(piece_size)
-                            }
-                        },
-                        Role::Knight => {
-                            if piece.color.is_white() 
-                            {
-                                PieceImages::get_white_knight(piece_size)
-                            }
-                            else
-                            {
-                                PieceImages::get_black_knight(piece_size)
-                            }
-                        },
-                        Role::Bishop => {
-                            if piece.color.is_white() 
-                            {
-                                PieceImages::get_white_bishop(piece_size)
-                            }
-                            else
-                            {
-                                PieceImages::get_black_bishop(piece_size)
-                            }
-                        },
-                        Role::Rook => {
-                            if piece.color.is_white() 
-                            {
-                                PieceImages::get_white_rook(piece_size)
-                            }
-                            else
-                            {
-                                PieceImages::get_black_rook(piece_size)
-                            }
-                        },
-                        Role::Queen => {
-                            if piece.color.is_white() 
-                            {
-                                PieceImages::get_white_queen(piece_size)
-                            }
-                            else
-                            {
-                                PieceImages::get_black_queen(piece_size)
-                            }
-                        },
-                        Role::King => {
-                            if piece.color.is_white() 
-                            {
-                                PieceImages::get_white_king(piece_size)
-                            }
-                            else
-                            {
-                                PieceImages::get_black_king(piece_size)
-                            }
-                        },
+                if let Some(piece) = self.logic.piece_at_cell(real_file as i8, real_rank as i8) {
+                    let not_moved_piece = match self.moved_piece {
+                        None => true,
+                        Some(ref moved_piece) => moved_piece.file != real_file || moved_piece.rank != real_rank
                     };
 
-                    let location_x = (self.cells_size as f64) * (file as f64 + 0.5 + 0.1);
-                    let location_y = (self.cells_size as f64) * ((7.0-rank as f64) + 0.5 + 0.1);
-                    cr.set_source_pixbuf(
-                        &image,
-                        location_x,
-                        location_y
-                    );
-                    cr.paint();   
-                }
+                    if not_moved_piece {
+                            let image = self.get_piece_image_from_piece(piece, (self.cells_size as f64 * 0.8) as u32);
+                            let location_x = (self.cells_size as f64) * (file as f64 + 0.5 + 0.1);
+                            let location_y = (self.cells_size as f64) * ((7.0-rank as f64) + 0.5 + 0.1);
+                            cr.set_source_pixbuf(
+                                &image,
+                                location_x,
+                                location_y
+                            );
+                            cr.paint();   
+                        }
+                    }
             });
         });
+    }
+
+    fn draw_moved_piece(&self, cr: &Context)
+    {
+        if let Some(ref moved_piece) = self.moved_piece {
+            let piece_pointer_x = moved_piece.coords_x - (self.cells_size as f64) * 0.4;
+            let piece_pointer_y = moved_piece.coords_y - (self.cells_size as f64) * 0.4;
+            let image = self.get_piece_image_from_piece(moved_piece.piece_type, (self.cells_size as f64 * 0.8) as u32);
+
+            cr.set_source_pixbuf(
+                &image,
+                piece_pointer_x,
+                piece_pointer_y
+            );
+            cr.paint(); 
+        }
     }
 
     fn draw_coordinates(&self, cr: &Context)
@@ -344,5 +315,70 @@ impl ChessBoard
             color[2],
         );
         cr.fill();
+    }
+
+    fn get_piece_image_from_piece(&self, piece: Piece, piece_size: u32) -> Pixbuf {
+        match piece.role {
+            Role::Pawn => {
+                if piece.color.is_white() 
+                {
+                    PieceImages::get_white_pawn(piece_size)
+                }
+                else
+                {
+                    PieceImages::get_black_pawn(piece_size)
+                }
+            },
+            Role::Knight => {
+                if piece.color.is_white() 
+                {
+                    PieceImages::get_white_knight(piece_size)
+                }
+                else
+                {
+                    PieceImages::get_black_knight(piece_size)
+                }
+            },
+            Role::Bishop => {
+                if piece.color.is_white() 
+                {
+                    PieceImages::get_white_bishop(piece_size)
+                }
+                else
+                {
+                    PieceImages::get_black_bishop(piece_size)
+                }
+            },
+            Role::Rook => {
+                if piece.color.is_white() 
+                {
+                    PieceImages::get_white_rook(piece_size)
+                }
+                else
+                {
+                    PieceImages::get_black_rook(piece_size)
+                }
+            },
+            Role::Queen => {
+                if piece.color.is_white() 
+                {
+                    PieceImages::get_white_queen(piece_size)
+                }
+                else
+                {
+                    PieceImages::get_black_queen(piece_size)
+                }
+            },
+            Role::King => {
+                if piece.color.is_white() 
+                {
+                    PieceImages::get_white_king(piece_size)
+                }
+                else
+                {
+                    PieceImages::get_black_king(piece_size)
+                }
+            },
+        }
     }
 }
