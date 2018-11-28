@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::cell::RefCell;
 use std::rc::Rc;
 use gtk::prelude::*;
@@ -7,8 +8,8 @@ use gtk::DrawingArea;
 use gdk_pixbuf::Pixbuf;
 use cairo::Context;
 use cairo::enums::{FontSlant, FontWeight};
-use shakmaty::{Role, Piece};
-use chess_position_trainer::graphic::PieceImages;
+use shakmaty::Piece;
+use chess_position_trainer::graphic::load_image;
 use chess_position_trainer::logic::chessgame::ChessGame;
 
 #[derive(Clone)]
@@ -19,6 +20,7 @@ pub struct ChessBoard
     logic: ChessGame,
     cells_size: u32,
     moved_piece: Option<MovedPiece>,
+    images: HashMap<char, Pixbuf>,
 }
 
 #[derive(Clone, Debug)]
@@ -65,6 +67,39 @@ impl ChessBoard
     {
         &self.drawing_area
     }
+    
+    fn load_pieces_images(size: u32) -> HashMap<char, Pixbuf> {
+        let mut images = HashMap::new();
+
+        let params: Vec<(char, &'static [u8], &str)> = vec![
+            ('P', include_bytes!("../../resources/Chess_pl.png"), "Failed to get white pawn image !"),
+            ('N', include_bytes!("../../resources/Chess_nl.png"), "Failed to get white knight image !"),
+            ('B', include_bytes!("../../resources/Chess_bl.png"), "Failed to get white bishop image !"),
+            ('R', include_bytes!("../../resources/Chess_rl.png"), "Failed to get white rook image !"),
+            ('Q', include_bytes!("../../resources/Chess_ql.png"), "Failed to get white queen image !"),
+            ('K', include_bytes!("../../resources/Chess_kl.png"), "Failed to get white king image !"),
+
+            ('p', include_bytes!("../../resources/Chess_pd.png"), "Failed to get black pawn image !"),
+            ('n', include_bytes!("../../resources/Chess_nd.png"), "Failed to get black knight image !"),
+            ('b', include_bytes!("../../resources/Chess_bd.png"), "Failed to get black bishop image !"),
+            ('r', include_bytes!("../../resources/Chess_rd.png"), "Failed to get black rook image !"),
+            ('q', include_bytes!("../../resources/Chess_qd.png"), "Failed to get black queen image !"),
+            ('k', include_bytes!("../../resources/Chess_kd.png"), "Failed to get black king image !"),
+        ];
+
+        params.iter().for_each(|(piece_code, image_binary, error_string)| {
+            images.insert(
+                *piece_code,
+                load_image(
+                    image_binary,
+                    size as i32
+                ).expect(error_string)
+            );
+
+        });
+
+        images
+    }
 
     fn get_chessboard(initial_position: &str) -> Result<Rc<RefCell<ChessBoard>>, String>
     {
@@ -79,12 +114,15 @@ impl ChessBoard
 
         match logic {
             Some(game_logic) => {
+                let images = ChessBoard::load_pieces_images((50f64 * 0.8) as u32);
+
                 let chess_board = ChessBoard {
                     drawing_area,
                     reversed: false,
                     logic: game_logic,
                     cells_size: 50u32,
                     moved_piece: None,
+                    images,
                 };
 
                 let chess_board_ref = Rc::new(RefCell::new(chess_board));
@@ -213,33 +251,33 @@ impl ChessBoard
 
     fn draw_pieces(&self, cr: &Context)
     {
-        (0..8).for_each(|rank| {
-            (0..8).for_each(|file| {
+        (0..64).for_each(|index| {
+
+            let file = index % 8;
+            let rank = index / 8;
                 
-                let real_file = (if self.reversed { 7-file } else { file }) as i32;
-                let real_rank = (if self.reversed { 7-rank } else { rank }) as i32;
+            let real_file = (if self.reversed { 7-file } else { file }) as i32;
+            let real_rank = (if self.reversed { 7-rank } else { rank }) as i32;
 
-                let piece_size = (self.cells_size as f64 * 0.8) as i32;
+            if let Some(piece) = self.logic.piece_at_cell(real_file as i8, real_rank as i8) {
+                let not_moved_piece = match self.moved_piece {
+                    None => true,
+                    Some(ref moved_piece) => moved_piece.file != real_file || moved_piece.rank != real_rank
+                };
 
-                if let Some(piece) = self.logic.piece_at_cell(real_file as i8, real_rank as i8) {
-                    let not_moved_piece = match self.moved_piece {
-                        None => true,
-                        Some(ref moved_piece) => moved_piece.file != real_file || moved_piece.rank != real_rank
-                    };
+                if not_moved_piece {
+                        let image = self.images.get(&piece.char()).expect("Failed to get piece image !");
+                        let location_x = (self.cells_size as f64) * (file as f64 + 0.5 + 0.1);
+                        let location_y = (self.cells_size as f64) * ((7.0-rank as f64) + 0.5 + 0.1);
+                        cr.set_source_pixbuf(
+                            &image,
+                            location_x,
+                            location_y
+                        );
+                        cr.paint();   
+                }
+            }
 
-                    if not_moved_piece {
-                            let image = self.get_piece_image_from_piece(piece, (self.cells_size as f64 * 0.8) as u32);
-                            let location_x = (self.cells_size as f64) * (file as f64 + 0.5 + 0.1);
-                            let location_y = (self.cells_size as f64) * ((7.0-rank as f64) + 0.5 + 0.1);
-                            cr.set_source_pixbuf(
-                                &image,
-                                location_x,
-                                location_y
-                            );
-                            cr.paint();   
-                        }
-                    }
-            });
         });
     }
 
@@ -248,7 +286,7 @@ impl ChessBoard
         if let Some(ref moved_piece) = self.moved_piece {
             let piece_pointer_x = moved_piece.coords_x - (self.cells_size as f64) * 0.4;
             let piece_pointer_y = moved_piece.coords_y - (self.cells_size as f64) * 0.4;
-            let image = self.get_piece_image_from_piece(moved_piece.piece_type, (self.cells_size as f64 * 0.8) as u32);
+            let image = self.images.get(&moved_piece.piece_type.char()).expect("Failed to get moved piece image !");
 
             cr.set_source_pixbuf(
                 &image,
@@ -315,70 +353,5 @@ impl ChessBoard
             color[2],
         );
         cr.fill();
-    }
-
-    fn get_piece_image_from_piece(&self, piece: Piece, piece_size: u32) -> Pixbuf {
-        match piece.role {
-            Role::Pawn => {
-                if piece.color.is_white() 
-                {
-                    PieceImages::get_white_pawn(piece_size)
-                }
-                else
-                {
-                    PieceImages::get_black_pawn(piece_size)
-                }
-            },
-            Role::Knight => {
-                if piece.color.is_white() 
-                {
-                    PieceImages::get_white_knight(piece_size)
-                }
-                else
-                {
-                    PieceImages::get_black_knight(piece_size)
-                }
-            },
-            Role::Bishop => {
-                if piece.color.is_white() 
-                {
-                    PieceImages::get_white_bishop(piece_size)
-                }
-                else
-                {
-                    PieceImages::get_black_bishop(piece_size)
-                }
-            },
-            Role::Rook => {
-                if piece.color.is_white() 
-                {
-                    PieceImages::get_white_rook(piece_size)
-                }
-                else
-                {
-                    PieceImages::get_black_rook(piece_size)
-                }
-            },
-            Role::Queen => {
-                if piece.color.is_white() 
-                {
-                    PieceImages::get_white_queen(piece_size)
-                }
-                else
-                {
-                    PieceImages::get_black_queen(piece_size)
-                }
-            },
-            Role::King => {
-                if piece.color.is_white() 
-                {
-                    PieceImages::get_white_king(piece_size)
-                }
-                else
-                {
-                    PieceImages::get_black_king(piece_size)
-                }
-            },
-        }
     }
 }
