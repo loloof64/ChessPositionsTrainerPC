@@ -8,7 +8,7 @@ use gtk::DrawingArea;
 use gdk_pixbuf::Pixbuf;
 use cairo::Context;
 use cairo::enums::{FontSlant, FontWeight};
-use shakmaty::Piece;
+use shakmaty::{Piece, Chess};
 use chess_position_trainer::graphic::load_image;
 use chess_position_trainer::logic::chessgame::ChessGame;
 
@@ -29,8 +29,8 @@ struct MovedPiece
     piece_type: Piece,
     coords_x: f64,
     coords_y: f64,
-    file: i32,
-    rank: i32
+    start_file: u8,
+    start_rank: u8
 }
 
 impl MovedPiece {
@@ -169,8 +169,8 @@ impl ChessBoard
                 coords_x,
                 coords_y,
                 piece_type,
-                file: cell_coords.0,
-                rank: cell_coords.1,
+                start_file: cell_coords.0 as u8,
+                start_rank: cell_coords.1 as u8,
             });
 
             self.drawing_area.queue_draw();
@@ -180,11 +180,21 @@ impl ChessBoard
     fn handle_mouse_released(&mut self, coords: (f64, f64)){
         let cells_size = self.cells_size as f64;
         let mut cell_coords = (
-            ((coords.0 - (cells_size * 0.5)) / cells_size) as i32,
-            7 - (((coords.1 - (cells_size * 0.5)) / cells_size) as i32),
+            ((coords.0 - (cells_size * 0.5)) / cells_size) as u8,
+            7 - (((coords.1 - (cells_size * 0.5)) / cells_size) as u8),
         );
         if self.reversed {
-            cell_coords = (7-cell_coords.0, 7-cell_coords.1);
+            cell_coords = ((7-cell_coords.0) as u8, (7-cell_coords.1) as u8);
+        }
+
+        if let Some(ref moved_piece) = self.moved_piece {
+            let start_cell = (moved_piece.start_file, moved_piece.start_rank);
+            let end_cell = cell_coords;
+
+            if self.logic.is_legal_move::<Chess>(start_cell, end_cell, None) {
+                self.logic.do_move::<Chess>(start_cell, end_cell, None);
+                self.drawing_area.queue_draw();
+            }
         }
 
         self.moved_piece = None;
@@ -256,13 +266,13 @@ impl ChessBoard
             let file = index % 8;
             let rank = index / 8;
                 
-            let real_file = (if self.reversed { 7-file } else { file }) as i32;
-            let real_rank = (if self.reversed { 7-rank } else { rank }) as i32;
+            let real_file = (if self.reversed { 7-file } else { file }) as u8;
+            let real_rank = (if self.reversed { 7-rank } else { rank }) as u8;
 
             if let Some(piece) = self.logic.piece_at_cell(real_file as i8, real_rank as i8) {
                 let not_moved_piece = match self.moved_piece {
                     None => true,
-                    Some(ref moved_piece) => moved_piece.file != real_file || moved_piece.rank != real_rank
+                    Some(ref moved_piece) => moved_piece.start_file != real_file || moved_piece.start_rank != real_rank
                 };
 
                 if not_moved_piece {
