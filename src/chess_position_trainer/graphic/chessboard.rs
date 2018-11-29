@@ -8,7 +8,7 @@ use gtk::DrawingArea;
 use gdk_pixbuf::Pixbuf;
 use cairo::Context;
 use cairo::enums::{FontSlant, FontWeight};
-use shakmaty::{Piece, Chess};
+use shakmaty::{Piece, Role, Chess};
 use chess_position_trainer::graphic::load_image;
 use chess_position_trainer::logic::chessgame::ChessGame;
 
@@ -191,9 +191,15 @@ impl ChessBoard
             let start_cell = (moved_piece.start_file, moved_piece.start_rank);
             let end_cell = cell_coords;
 
-            if self.logic.is_legal_move::<Chess>(start_cell, end_cell, None) {
-                self.logic.do_move::<Chess>(start_cell, end_cell, None);
-                self.drawing_area.queue_draw();
+            if self.logic.is_legal_move::<Chess>(start_cell, end_cell) {
+                if self.logic.is_promotion_move(start_cell, end_cell) {
+                    self.logic.do_move::<Chess>(start_cell, end_cell, Some(Role::Queen));
+                    self.drawing_area.queue_draw();
+                }
+                else {
+                    self.logic.do_move::<Chess>(start_cell, end_cell, None);
+                    self.drawing_area.queue_draw();
+                }
             }
         }
 
