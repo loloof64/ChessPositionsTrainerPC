@@ -15,7 +15,8 @@ Using Rust language and Gtk-Rs GUI.
 Windows user
 ------------
 
-You can use CygWin terminal and download Gtk devel package from it.
+You can use CygWin terminal and download Gtk devel package from it. By the way, you should keep the setup.exe, as it is also
+an interface for installing packages, once CygWin has been installed.
 
 You'd better use this command rather to build the application
 
@@ -23,7 +24,7 @@ You'd better use this command rather to build the application
 
 That way the program won't be launched in console mode.
 
-Acknowkledgements
+Acknowledgements
 ------------------
 
 * Mozilla for its wonderful language that is Rust and their efforts to make it efficient, understandable and usable.
