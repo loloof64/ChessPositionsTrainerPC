@@ -199,9 +199,7 @@ impl ChessBoard
             cell_coords = ((7-cell_coords.0) as u8, (7-cell_coords.1) as u8);
         }
 
-        let moved_piece = self.moved_piece.borrow().clone();
-        if moved_piece.is_some() {
-            let moved_piece = moved_piece.expect("Failed to get moved piece");
+        if let Some(moved_piece) = self.moved_piece.borrow().clone() {
             let start_cell = (moved_piece.start_file, moved_piece.start_rank);
             let end_cell = cell_coords;
 
@@ -413,9 +411,8 @@ impl ChessBoard
             let real_file = (if self.reversed { 7-file } else { file }) as u8;
             let real_rank = (if self.reversed { 7-rank } else { rank }) as u8;
 
-            let piece_at_current_cell = self.logic.borrow().piece_at_cell(real_file as i8, real_rank as i8);
-            if piece_at_current_cell.is_some() {
-                let piece = piece_at_current_cell.expect("Failed to get moved piece !");
+            
+            if let Some(piece) = self.logic.borrow().piece_at_cell(real_file as i8, real_rank as i8) {
                 let moved_piece = self.moved_piece.borrow().clone();
                 let not_moved_piece = 
                     if moved_piece.is_none() { true }
@@ -441,9 +438,7 @@ impl ChessBoard
 
     fn draw_moved_piece(&self, cr: &Context)
     {
-        let moved_piece = self.moved_piece.borrow().clone();
-        if moved_piece.is_some() {
-            let moved_piece = moved_piece.expect("Failed to get moved piece !");
+        if let Some(moved_piece) = self.moved_piece.borrow().clone() {
             let piece_pointer_x = moved_piece.coords_x - (self.cells_size as f64) * 0.4;
             let piece_pointer_y = moved_piece.coords_y - (self.cells_size as f64) * 0.4;
             let image = self.pieces_images.get(&moved_piece.piece_type.char()).expect("Failed to get moved piece image !");
