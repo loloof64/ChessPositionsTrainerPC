@@ -15,8 +15,16 @@ Using Rust language and Gtk-Rs GUI.
 Windows user
 ------------
 
+You can use CygWin terminal and download Gtk devel package from it.
+
 You'd better use this command rather to build the application
 
     cargo rustc --release -- -Clink-args="-Wl,--subsystem,windows"
 
 That way the program won't be launched in console mode.
+
+Acknowkledgements
+------------------
+
+* Mozilla for its wonderful language that is Rust and their efforts to make it efficient, understandable and usable.
+* The members of [Gitter channel for Rust](https://gitter.im/rust-lang/rust) : great place for getting help.

@@ -1,10 +1,10 @@
 use std::collections::HashMap;
-use std::cell::RefCell;
 use std::rc::Rc;
+use std::cell::RefCell;
 use gtk::prelude::*;
 use gdk::prelude::*;
 use gdk::{EventMask, EventType};
-use gtk::DrawingArea;
+use gtk::{DrawingArea, Dialog, Orientation, Box as GBox, Button, Image};
 use gdk_pixbuf::Pixbuf;
 use cairo::Context;
 use cairo::enums::{FontSlant, FontWeight};
@@ -17,10 +17,10 @@ pub struct ChessBoard
 {
     drawing_area: DrawingArea,
     reversed: bool,
-    logic: ChessGame,
+    logic: RefCell<ChessGame>,
     cells_size: u32,
-    moved_piece: Option<MovedPiece>,
-    images: HashMap<char, Pixbuf>,
+    moved_piece: RefCell<Option<MovedPiece>>,
+    pieces_images: HashMap<char, Pixbuf>,
 }
 
 #[derive(Clone, Debug)]
@@ -31,6 +31,14 @@ struct MovedPiece
     coords_y: f64,
     start_file: u8,
     start_rank: u8
+}
+
+enum PromotionType
+{
+    QUEEN = 1,
+    ROOK = 2,
+    BISHOP = 4,
+    KNIGHT = 8
 }
 
 impl MovedPiece {
@@ -114,36 +122,40 @@ impl ChessBoard
 
         match logic {
             Some(game_logic) => {
-                let images = ChessBoard::load_pieces_images((50f64 * 0.8) as u32);
+                let pieces_images = ChessBoard::load_pieces_images((50f64 * 0.8) as u32);
 
                 let chess_board = ChessBoard {
                     drawing_area,
                     reversed: false,
-                    logic: game_logic,
+                    logic: RefCell::new(game_logic),
                     cells_size: 50u32,
-                    moved_piece: None,
-                    images,
+                    moved_piece: RefCell::new(None),
+                    pieces_images,
                 };
 
                 let chess_board_ref = Rc::new(RefCell::new(chess_board));
 
-                let chess_board_ref_2 = chess_board_ref.clone();
-                chess_board_ref.borrow().drawing_area.connect_draw(move |_drawing_area, cr|{
-                    chess_board_ref_2.borrow().paint(cr);
-                    Inhibit(false)
+                chess_board_ref.borrow().drawing_area.connect_draw({
+                    let chess_board_ref = chess_board_ref.clone();
+                    move |_drawing_area, cr|{
+                        chess_board_ref.borrow().paint(cr);
+                        Inhibit(false)
+                    }
                 });
 
-                let chess_board_ref_3 = chess_board_ref.clone();
-                chess_board_ref.borrow().drawing_area.connect_event(move |_self, event| {
-                    let coords = event.get_coords().expect("Failed to get mouse coordinates !");
-                    
-                    match event.get_event_type() {
-                        EventType::ButtonPress => chess_board_ref_3.borrow_mut().handle_mouse_pressed(coords),
-                        EventType::ButtonRelease => chess_board_ref_3.borrow_mut().handle_mouse_released(coords),
-                        EventType::MotionNotify => chess_board_ref_3.borrow_mut().handle_mouse_moved(coords),
-                    _ => {} 
+                chess_board_ref.borrow().drawing_area.connect_event({
+                    let chess_board_ref = chess_board_ref.clone();
+                    move |_self, event| {
+                        let coords = event.get_coords().expect("Failed to get mouse coordinates !");
+                        
+                        match event.get_event_type() {
+                            EventType::ButtonPress => chess_board_ref.borrow().handle_mouse_pressed(coords),
+                            EventType::ButtonRelease => chess_board_ref.borrow().handle_mouse_released(coords),
+                            EventType::MotionNotify => chess_board_ref.borrow().handle_mouse_moved(coords),
+                        _ => {} 
+                        }
+                        Inhibit(false)
                     }
-                    Inhibit(false)
                 });
 
                 Ok(chess_board_ref)
@@ -152,7 +164,7 @@ impl ChessBoard
         }
     }
 
-    fn handle_mouse_pressed(&mut self, coords: (f64, f64)){
+    fn handle_mouse_pressed(&self, coords: (f64, f64)){
         let cells_size = self.cells_size as f64;
         let mut cell_coords = (
             ((coords.0 - (cells_size * 0.5)) / cells_size) as i32,
@@ -163,21 +175,21 @@ impl ChessBoard
         }
 
         let (coords_x, coords_y) = coords;
-        let moved_piece = self.logic.piece_at_cell(cell_coords.0 as i8, cell_coords.1 as i8);
+        let moved_piece = self.logic.borrow().piece_at_cell(cell_coords.0 as i8, cell_coords.1 as i8);
         if let Some(piece_type) = moved_piece {
-            self.moved_piece = Some(MovedPiece{
+            self.moved_piece.replace(Some(MovedPiece{
                 coords_x,
                 coords_y,
                 piece_type,
                 start_file: cell_coords.0 as u8,
                 start_rank: cell_coords.1 as u8,
-            });
+            }));
 
             self.drawing_area.queue_draw();
         }
     }
 
-    fn handle_mouse_released(&mut self, coords: (f64, f64)){
+    fn handle_mouse_released(&self, coords: (f64, f64)){
         let cells_size = self.cells_size as f64;
         let mut cell_coords = (
             ((coords.0 - (cells_size * 0.5)) / cells_size) as u8,
@@ -187,32 +199,158 @@ impl ChessBoard
             cell_coords = ((7-cell_coords.0) as u8, (7-cell_coords.1) as u8);
         }
 
-        if let Some(ref moved_piece) = self.moved_piece {
+        let moved_piece = self.moved_piece.borrow().clone();
+        if moved_piece.is_some() {
+            let moved_piece = moved_piece.expect("Failed to get moved piece");
             let start_cell = (moved_piece.start_file, moved_piece.start_rank);
             let end_cell = cell_coords;
 
-            if self.logic.is_legal_move::<Chess>(start_cell, end_cell) {
-                if self.logic.is_promotion_move(start_cell, end_cell) {
-                    self.logic.do_move::<Chess>(start_cell, end_cell, Some(Role::Queen));
+            if self.logic.borrow().is_legal_move::<Chess>(start_cell, end_cell) {
+                if self.logic.borrow().is_promotion_move(start_cell, end_cell) {
+                    let selected_role = self.open_promotion_selector();
+                    self.logic.borrow_mut().do_move::<Chess>(start_cell, end_cell, Some(selected_role));
                     self.drawing_area.queue_draw();
                 }
                 else {
-                    self.logic.do_move::<Chess>(start_cell, end_cell, None);
+                    self.logic.borrow_mut().do_move::<Chess>(start_cell, end_cell, None);
                     self.drawing_area.queue_draw();
                 }
             }
         }
 
-        self.moved_piece = None;
+        self.moved_piece.replace(None);
         self.drawing_area.queue_draw();
     }
 
-    fn handle_mouse_moved(&mut self, coords: (f64, f64)){
-        if let Some(ref mut move_spec) = self.moved_piece {
-            move_spec.translate_to(coords.0, coords.1);
-            self.drawing_area.queue_draw();
-
+    fn handle_mouse_moved(&self, coords: (f64, f64)) {
+        match *self.moved_piece.borrow_mut() {
+            Some(ref mut moved_piece) => {
+                moved_piece.translate_to(coords.0, coords.1);
+                self.drawing_area.queue_draw();
+            }
+            None => {}
         }
+    }
+
+    fn open_promotion_selector(&self) -> Role {
+        let dialog = Dialog::new();
+        dialog.set_title("Select your promotion piece");
+        dialog.set_modal(true);
+
+        let dialog_ref = Rc::new(dialog);
+        let is_white_turn = self.logic.borrow().is_white_turn();
+
+        let queen_image = if is_white_turn {
+            self.pieces_images.get(&'Q').expect("Failed to get white queen image")
+        } else {
+            self.pieces_images.get(&'q').expect("Failed to get black queen image")
+        };
+        let queen_image = Image::new_from_pixbuf(queen_image);
+
+        let queen_button = Button::new();
+        queen_button.set_image(&queen_image);
+        queen_button.connect_clicked({
+            let dialog_ref = dialog_ref.clone();
+            move |_button| {
+                dialog_ref.response(PromotionType::QUEEN as i32);
+                dialog_ref.close();
+            }
+        });
+
+        let rook_image = if is_white_turn {
+            self.pieces_images.get(&'R').expect("Failed to get white rook image")
+        } else {
+            self.pieces_images.get(&'r').expect("Failed to get black rook image")
+        };
+        let rook_image = Image::new_from_pixbuf(rook_image);
+
+        let rook_button = Button::new();
+        rook_button.set_image(&rook_image);
+        rook_button.connect_clicked({
+            let dialog_ref = dialog_ref.clone();
+            move |_button| {
+                dialog_ref.response(PromotionType::ROOK as i32);
+                dialog_ref.close();
+            }
+        });
+
+        let bishop_image = if is_white_turn {
+            self.pieces_images.get(&'B').expect("Failed to get white bishop image")
+        } else {
+            self.pieces_images.get(&'b').expect("Failed to get black bishop image")
+        };
+        let bishop_image = Image::new_from_pixbuf(bishop_image);
+
+        let bishop_button = Button::new();
+        bishop_button.set_image(&bishop_image);
+        bishop_button.connect_clicked({
+            let dialog_ref = dialog_ref.clone();
+            move |_button| {
+                dialog_ref.response(PromotionType::BISHOP as i32);
+                dialog_ref.close();
+            }
+        });
+
+        let knight_image = if is_white_turn {
+            self.pieces_images.get(&'N').expect("Failed to get white knight image")
+        } else {
+            self.pieces_images.get(&'n').expect("Failed to get black knight image")
+        };
+        let knight_image = Image::new_from_pixbuf(knight_image);
+
+        let knight_button = Button::new();
+        knight_button.set_image(&knight_image);
+        knight_button.connect_clicked({
+            let dialog_ref = dialog_ref.clone();
+            move |_button| {
+                dialog_ref.response(PromotionType::KNIGHT as i32);
+                dialog_ref.close();
+            }
+        });
+
+        let buttons_box = GBox::new(Orientation::Horizontal, 10);
+        buttons_box.pack_start(
+            &queen_button,
+            true,
+            true,
+            0
+        );
+        buttons_box.pack_start(
+            &rook_button,
+            true,
+            true,
+            0
+        );
+        buttons_box.pack_start(
+            &bishop_button,
+            true,
+            true,
+            0
+        );
+        buttons_box.pack_start(
+            &knight_button,
+            true,
+            true,
+            0
+        );
+
+        dialog_ref.get_content_area().pack_start(
+            &buttons_box,
+            true,
+            true,
+            10
+        );
+
+        dialog_ref.show_all();
+
+        let response = dialog_ref.run();
+        if response == PromotionType::QUEEN as i32 { Role::Queen }
+                        else if response == PromotionType::ROOK as i32 { Role::Rook }
+                        else if response == PromotionType::BISHOP as i32 { Role::Bishop }
+                        else if response == PromotionType::KNIGHT as i32 { Role::Knight }
+                        else { Role::Queen }
+
+
     }
 
     fn paint(&self, cr: &Context){
@@ -275,14 +413,19 @@ impl ChessBoard
             let real_file = (if self.reversed { 7-file } else { file }) as u8;
             let real_rank = (if self.reversed { 7-rank } else { rank }) as u8;
 
-            if let Some(piece) = self.logic.piece_at_cell(real_file as i8, real_rank as i8) {
-                let not_moved_piece = match self.moved_piece {
-                    None => true,
-                    Some(ref moved_piece) => moved_piece.start_file != real_file || moved_piece.start_rank != real_rank
-                };
+            let piece_at_current_cell = self.logic.borrow().piece_at_cell(real_file as i8, real_rank as i8);
+            if piece_at_current_cell.is_some() {
+                let piece = piece_at_current_cell.expect("Failed to get moved piece !");
+                let moved_piece = self.moved_piece.borrow().clone();
+                let not_moved_piece = 
+                    if moved_piece.is_none() { true }
+                    else {
+                        let moved_piece = moved_piece.expect("Failed to get moved piece !");
+                        moved_piece.start_file != real_file || moved_piece.start_rank != real_rank
+                    };
 
                 if not_moved_piece {
-                        let image = self.images.get(&piece.char()).expect("Failed to get piece image !");
+                        let image = self.pieces_images.get(&piece.char()).expect("Failed to get piece image !");
                         let location_x = (self.cells_size as f64) * (file as f64 + 0.5 + 0.1);
                         let location_y = (self.cells_size as f64) * ((7.0-rank as f64) + 0.5 + 0.1);
                         cr.set_source_pixbuf(
@@ -293,16 +436,17 @@ impl ChessBoard
                         cr.paint();   
                 }
             }
-
         });
     }
 
     fn draw_moved_piece(&self, cr: &Context)
     {
-        if let Some(ref moved_piece) = self.moved_piece {
+        let moved_piece = self.moved_piece.borrow().clone();
+        if moved_piece.is_some() {
+            let moved_piece = moved_piece.expect("Failed to get moved piece !");
             let piece_pointer_x = moved_piece.coords_x - (self.cells_size as f64) * 0.4;
             let piece_pointer_y = moved_piece.coords_y - (self.cells_size as f64) * 0.4;
-            let image = self.images.get(&moved_piece.piece_type.char()).expect("Failed to get moved piece image !");
+            let image = self.pieces_images.get(&moved_piece.piece_type.char()).expect("Failed to get moved piece image !");
 
             cr.set_source_pixbuf(
                 &image,
@@ -359,7 +503,7 @@ impl ChessBoard
 
     fn draw_player_turn(&self, cr: &Context)
     {
-        let color = if self.logic.is_white_turn() { [1.0, 1.0, 1.0] } else { [0.0, 0.0, 0.0] };
+        let color = if self.logic.borrow().is_white_turn() { [1.0, 1.0, 1.0] } else { [0.0, 0.0, 0.0] };
         let center = (self.cells_size as f64) * 8.75;
         let radius = (self.cells_size as f64) * 0.25;
         cr.arc(center, center, radius, 0.0, 2.0 * std::f64::consts::PI);

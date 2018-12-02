@@ -41,9 +41,11 @@ impl MainWindow
         );
         reverse_board_button.set_image(&reverse_board_button_image);
 
-        let click_handler_chessboard = chessboard.clone();
-        reverse_board_button.connect_clicked(move |_button|{
-            click_handler_chessboard.borrow_mut().reverse();
+        reverse_board_button.connect_clicked({
+            let chessboard = chessboard.clone();
+            move |_button|{
+                chessboard.borrow_mut().reverse();
+            }
         });
 
         let buttons_hbox = GtkBox::new(
