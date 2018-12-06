@@ -1,8 +1,5 @@
 use gtk::prelude::*;
 use gtk::{Window, WindowType, Button, Image, Box as GtkBox, Orientation};
-use gdk_pixbuf::Pixbuf;
-use gio::MemoryInputStream;
-use glib::Bytes;
 use chess_position_trainer::graphic::{ChessBoard, load_image};
 
 pub struct MainWindow
@@ -91,17 +88,10 @@ impl MainWindow
     }
 
     fn set_icon(&mut self){
-        let icon_stream = MemoryInputStream::new_from_bytes(
-            &Bytes::from_static(include_bytes!("../../resources/Chess_ql.png"))
-        );
-        let icon_pixbuf = Pixbuf::new_from_stream(&icon_stream, None);
-        let icon = match icon_pixbuf {
-            Ok(icon) => icon,
-            Err(e) => {
-                println!("Failed to get icon ! ({})", e);
-                return;
-            }
-        };
-        self.window.set_icon(&icon);
+        let icon_pixbuf = load_image(
+                include_bytes!("../../resources/Chess_ql.png"),
+                60,
+            ).expect("Could not find UpDown image !");
+        self.window.set_icon(&icon_pixbuf);
     }
 }
