@@ -1,23 +1,32 @@
 use shakmaty::{Piece, Square, Role, MoveList, Move, Position, Chess};
 use shakmaty::fen::{Fen, epd};
+use super::computer::Computer;
 
-#[derive(Clone)]
 pub struct ChessGame
 {
     position: Fen,
+    computer: Computer,
 }
 
 impl ChessGame
 {
-    pub fn new_from_fen(position_str: &str) -> Option<ChessGame>
+    pub fn new_from_fen(position_str: &str) -> Result<ChessGame, String>
     {
-        match Fen::from_ascii(position_str.as_bytes()) {
-            Ok(fen) => Some(
-                ChessGame{
-                    position: fen,
+        let engine_path = "/home/laurent-bernabe/Android"; //"/home/laurent-bernabe/Programmes/Echecs/Moteurs/stockfish-10-linux/Linux/stockfish_10_x64_modern";
+        let computer = Computer::new_from_path(engine_path);
+        match computer {
+            Ok(computer) => {
+                match Fen::from_ascii(position_str.as_bytes()) {
+                    Ok(position) => Ok(
+                        ChessGame{
+                            position,
+                            computer,
+                        }
+                    ),
+                    _ => Err(format!("The position {} is illegal !", position_str))
                 }
-            ),
-            _ => None
+            },
+            Err(error) => Err(format!("{}", error))
         }
     }
 
@@ -73,9 +82,15 @@ impl ChessGame
             test
         }).collect::<Vec<&Move>>();
 
-        if expected_moves.len() > 0 { 
+        if expected_moves.len() > 0 {
             let the_move = expected_moves[0].clone();
             Some(the_move)
         } else { None }
+    }
+
+    pub fn get_bestmove(&self) -> String
+    {
+        self.computer.set_engine_position(epd(&self.position).as_ref());
+        self.computer.get_bestmove()
     }
 }

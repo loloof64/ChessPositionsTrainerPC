@@ -12,7 +12,6 @@ use shakmaty::{Piece, Role, Chess};
 use chess_position_trainer::graphic::load_image;
 use chess_position_trainer::logic::chessgame::ChessGame;
 
-#[derive(Clone)]
 pub struct ChessBoard
 {
     drawing_area: DrawingArea,
@@ -121,7 +120,7 @@ impl ChessBoard
         let logic = ChessGame::new_from_fen(initial_position);
 
         match logic {
-            Some(game_logic) => {
+            Ok(game_logic) => {
                 let pieces_images = ChessBoard::load_pieces_images((50f64 * 0.8) as u32);
 
                 let chess_board = ChessBoard {
@@ -160,7 +159,7 @@ impl ChessBoard
 
                 Ok(chess_board_ref)
             },
-            None => Err(format!("Bad FEN {} !", initial_position))
+            Err(error) => Err(error)
         }
     }
 
@@ -212,6 +211,9 @@ impl ChessBoard
                 else {
                     self.logic.borrow_mut().do_move::<Chess>(start_cell, end_cell, None);
                     self.drawing_area.queue_draw();
+
+                    let bestmove = self.logic.borrow().get_bestmove();
+                    println!("bestmove : {}", bestmove)
                 }
             }
         }

@@ -5,6 +5,7 @@ extern crate gio;
 extern crate glib;
 extern crate cairo;
 extern crate gdk_pixbuf;
+#[macro_use] extern crate log;
 
 mod chess_position_trainer;
 use chess_position_trainer::graphic::main_window::{MainWindow};
