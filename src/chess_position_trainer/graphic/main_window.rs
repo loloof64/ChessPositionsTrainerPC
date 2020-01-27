@@ -3,7 +3,7 @@ use gtk::{Window, WindowType, Button, Image, Box as GtkBox, Orientation};
 use gdk_pixbuf::Pixbuf;
 use gio::MemoryInputStream;
 use glib::Bytes;
-use chess_position_trainer::graphic::{ChessBoard, load_image};
+use super::super::graphic::{ChessBoard, load_image};
 
 pub struct MainWindow
 {

@@ -3,6 +3,7 @@ name = "chess_position_trainer"
 version = "0.1.0"
 authors = ["Laurent Bernabe <laurent.bernabe@gmail.com>"]
 license = "MIT"
+edition = "2018"
 
 [dependencies]
 cairo-rs = "0.5.0"

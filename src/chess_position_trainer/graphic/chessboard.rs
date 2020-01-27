@@ -9,8 +9,8 @@ use gdk_pixbuf::Pixbuf;
 use cairo::Context;
 use cairo::enums::{FontSlant, FontWeight};
 use shakmaty::{Piece, Role, Chess};
-use chess_position_trainer::graphic::load_image;
-use chess_position_trainer::logic::chessgame::ChessGame;
+use super::load_image;
+use super::super::logic::chessgame::ChessGame;
 
 #[derive(Clone)]
 pub struct ChessBoard
