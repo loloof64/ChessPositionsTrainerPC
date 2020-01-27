@@ -1,20 +1,23 @@
-use shakmaty::{Piece, Square, Role, MoveList, Move, Position, Chess};
-use shakmaty::fen::{Fen, epd};
+use pleco::{Board};
+use pleco::core::{Piece, Player, PieceType};
+use pleco::core::sq::{SQ};
+use pleco::core::piece_move::{BitMove};
+use pleco::core::move_list::{MoveList};
 
 #[derive(Clone)]
 pub struct ChessGame
 {
-    position: Fen,
+    position: Board,
 }
 
 impl ChessGame
 {
     pub fn new_from_fen(position_str: &str) -> Option<ChessGame>
     {
-        match Fen::from_ascii(position_str.as_bytes()) {
-            Ok(fen) => Some(
+        match Board::from_fen(position_str) {
+            Ok(board) => Some(
                 ChessGame{
-                    position: fen,
+                    position: board,
                 }
             ),
             _ => None
@@ -23,55 +26,49 @@ impl ChessGame
 
     pub fn is_white_turn(&self) -> bool
     {
-        self.position.turn.is_white()
+        self.position.turn() == Player::White
     }
 
-    pub fn piece_at_cell(&self, file: i8, rank: i8) -> Option<Piece>
+    pub fn piece_at_cell(&self, cell: SQ) -> Piece
     {
-        self.position.board.piece_at(Square::new((file + rank * 8) as i8))
+        self.position.piece_at_sq(cell)
     }
 
-    pub fn is_legal_move<P: Position>(&self, start_cell: (u8, u8), end_cell: (u8, u8)) -> bool {
-        let move_to_test = self.get_matching_move::<Chess>(start_cell, end_cell, None, true);
-        let position: P = self.position.position().expect("Failed to get current position !");
-        match move_to_test {
-            Some(move_to_test) => position.is_legal(&move_to_test),
+    pub fn is_legal_move(&self, start_cell: SQ, end_cell: SQ) -> bool {
+        match self.get_matching_move(start_cell, end_cell, PieceType::None, true) {
+            Some(_) => true,
             None => false
         }
     }
 
-    pub fn is_promotion_move(&self, start_cell: (u8, u8), end_cell: (u8, u8)) -> bool {
-        let move_to_test = self.get_matching_move::<Chess>(start_cell, end_cell, None, true);
+    pub fn is_promotion_move(&self, start_cell: SQ, end_cell: SQ) -> bool {
+        let move_to_test = self.get_matching_move(start_cell, end_cell, PieceType::None, true);
         match move_to_test {
-            Some(move_to_test) => move_to_test.is_promotion(),
+            Some(move_to_test) => move_to_test.is_promo(),
             None => false
         }
     }
 
-    pub fn do_move<P: Position>(&mut self, start_cell: (u8, u8), end_cell: (u8, u8), promotion: Option<Role>) {
-        let move_to_execute = self.get_matching_move::<Chess>(start_cell, end_cell, promotion, false).expect("Not a legal move !");
-        let mut position: P = self.position.position().expect("Failed to get current position !");
-        position.play_unchecked(&move_to_execute);
-        self.position = Fen::from_ascii(epd(&position).as_bytes()).expect("Failed to save the move !");
+    pub fn do_move(&mut self, start_cell: SQ, end_cell: SQ, promotion: PieceType) {
+        if let Some(move_to_execute) = self.get_matching_move(start_cell, end_cell, promotion, false) {
+            self.position.apply_move(move_to_execute);
+        }
     }
 
-    fn get_matching_move<P: Position>(&self, start_cell: (u8, u8), end_cell: (u8, u8),
-         expected_promotion: Option<Role>, skip_promotion_test: bool) -> Option<Move> {
-        let position: P = self.position.position().expect("Failed to get current position !");
-        let mut legal_moves_list = MoveList::new();
-        position.legal_moves(&mut legal_moves_list);
+    fn get_matching_move(&self, start_cell: SQ, end_cell: SQ,
+         expected_promotion: PieceType, skip_promotion_test: bool) -> Option<BitMove> {
+        let position: Board = self.position.shallow_clone();
+        let legal_moves_list: MoveList = position.generate_moves();
 
-        let expected_moves: Vec<&Move> = legal_moves_list.iter().filter(|m| {
-            let mut test = m.from().expect("The move has no from square !") == 
-                Square::from_index((start_cell.0 + start_cell.1 * 8) as i8).expect("Failed to build square") &&
-            m.to() == 
-                Square::from_index((end_cell.0 + end_cell.1 * 8) as i8).expect("Failed to build square");
-            if !skip_promotion_test {
-                test &= m.promotion() == expected_promotion;
+        let expected_moves: Vec<&BitMove> = legal_moves_list.iter().filter(|m| {            
+            let mut test = m.get_src() == start_cell &&
+                m.get_dest() == end_cell;
+            if m.is_promo() && !skip_promotion_test {
+                test &= m.promo_piece() == expected_promotion;
             }
 
             test
-        }).collect::<Vec<&Move>>();
+        }).collect::<Vec<&BitMove>>();
 
         if expected_moves.len() > 0 { 
             let the_move = expected_moves[0].clone();

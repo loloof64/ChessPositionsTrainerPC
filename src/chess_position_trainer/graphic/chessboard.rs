@@ -8,7 +8,8 @@ use gtk::{DrawingArea, Dialog, Orientation, Box as GBox, Button, Image};
 use gdk_pixbuf::Pixbuf;
 use cairo::Context;
 use cairo::enums::{FontSlant, FontWeight};
-use shakmaty::{Piece, Role, Chess};
+use pleco::core::{Piece, PieceType};
+use pleco::core::sq::{SQ};
 use super::load_image;
 use super::super::logic::chessgame::ChessGame;
 
@@ -26,7 +27,7 @@ pub struct ChessBoard
 #[derive(Clone, Debug)]
 struct MovedPiece
 {
-    piece_type: Piece,
+    piece: Piece,
     coords_x: f64,
     coords_y: f64,
     start_file: u8,
@@ -175,12 +176,14 @@ impl ChessBoard
         }
 
         let (coords_x, coords_y) = coords;
-        let moved_piece = self.logic.borrow().piece_at_cell(cell_coords.0 as i8, cell_coords.1 as i8);
-        if let Some(piece_type) = moved_piece {
+        let square: SQ = SQ::from((cell_coords.0 as u8) + 8* (cell_coords.1 as u8));
+        let piece = self.logic.borrow().piece_at_cell(square);
+        let piece_type = piece.type_of();
+        if piece_type != PieceType::None {
             self.moved_piece.replace(Some(MovedPiece{
                 coords_x,
                 coords_y,
-                piece_type,
+                piece,
                 start_file: cell_coords.0 as u8,
                 start_rank: cell_coords.1 as u8,
             }));
@@ -200,17 +203,17 @@ impl ChessBoard
         }
 
         if let Some(moved_piece) = self.moved_piece.borrow().clone() {
-            let start_cell = (moved_piece.start_file, moved_piece.start_rank);
-            let end_cell = cell_coords;
+            let start_cell = SQ::from(moved_piece.start_file + 8 * moved_piece.start_rank);
+            let end_cell = SQ::from(cell_coords.0 + 8 * cell_coords.1);
 
-            if self.logic.borrow().is_legal_move::<Chess>(start_cell, end_cell) {
+            if self.logic.borrow().is_legal_move(start_cell, end_cell) {
                 if self.logic.borrow().is_promotion_move(start_cell, end_cell) {
                     let selected_role = self.open_promotion_selector();
-                    self.logic.borrow_mut().do_move::<Chess>(start_cell, end_cell, Some(selected_role));
+                    self.logic.borrow_mut().do_move(start_cell, end_cell, selected_role);
                     self.drawing_area.queue_draw();
                 }
                 else {
-                    self.logic.borrow_mut().do_move::<Chess>(start_cell, end_cell, None);
+                    self.logic.borrow_mut().do_move(start_cell, end_cell, PieceType::None);
                     self.drawing_area.queue_draw();
                 }
             }
@@ -230,7 +233,7 @@ impl ChessBoard
         }
     }
 
-    fn open_promotion_selector(&self) -> Role {
+    fn open_promotion_selector(&self) -> PieceType {
         let dialog = Dialog::new();
         dialog.set_title("Select your promotion piece");
         dialog.set_modal(true);
@@ -342,11 +345,11 @@ impl ChessBoard
         dialog_ref.show_all();
 
         let response = dialog_ref.run();
-        if response == PromotionType::QUEEN as i32 { Role::Queen }
-                        else if response == PromotionType::ROOK as i32 { Role::Rook }
-                        else if response == PromotionType::BISHOP as i32 { Role::Bishop }
-                        else if response == PromotionType::KNIGHT as i32 { Role::Knight }
-                        else { Role::Queen }
+        if response == PromotionType::QUEEN as i32 { PieceType::Q }
+                        else if response == PromotionType::ROOK as i32 { PieceType::R }
+                        else if response == PromotionType::BISHOP as i32 { PieceType::B }
+                        else if response == PromotionType::KNIGHT as i32 { PieceType::N }
+                        else { PieceType::Q }
 
 
     }
@@ -411,8 +414,9 @@ impl ChessBoard
             let real_file = (if self.reversed { 7-file } else { file }) as u8;
             let real_rank = (if self.reversed { 7-rank } else { rank }) as u8;
 
+            let piece = self.logic.borrow().piece_at_cell(SQ::from(real_file + 8 * real_rank));
             
-            if let Some(piece) = self.logic.borrow().piece_at_cell(real_file as i8, real_rank as i8) {
+            if piece != Piece::None {
                 let moved_piece = self.moved_piece.borrow().clone();
                 let not_moved_piece = 
                     if moved_piece.is_none() { true }
@@ -422,7 +426,8 @@ impl ChessBoard
                     };
 
                 if not_moved_piece {
-                        let image = self.pieces_images.get(&piece.char()).expect("Failed to get piece image !");
+                        let piece_char = piece.character().expect("Failed to get piece char value !");
+                        let image = self.pieces_images.get(&piece_char).expect("Failed to get piece image !");
                         let location_x = (self.cells_size as f64) * (file as f64 + 0.5 + 0.1);
                         let location_y = (self.cells_size as f64) * ((7.0-rank as f64) + 0.5 + 0.1);
                         cr.set_source_pixbuf(
@@ -441,7 +446,8 @@ impl ChessBoard
         if let Some(moved_piece) = self.moved_piece.borrow().clone() {
             let piece_pointer_x = moved_piece.coords_x - (self.cells_size as f64) * 0.4;
             let piece_pointer_y = moved_piece.coords_y - (self.cells_size as f64) * 0.4;
-            let image = self.pieces_images.get(&moved_piece.piece_type.char()).expect("Failed to get moved piece image !");
+            let piece_char = moved_piece.piece.character().expect("Failed to get piece char value !");
+            let image = self.pieces_images.get(&piece_char).expect("Failed to get moved piece image !");
 
             cr.set_source_pixbuf(
                 &image,

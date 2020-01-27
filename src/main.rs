@@ -1,4 +1,4 @@
-extern crate shakmaty;
+extern crate pleco;
 extern crate gtk;
 extern crate gdk;
 extern crate gio;
